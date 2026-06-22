@@ -1404,10 +1404,12 @@ let syncEnabled = false;
 const SHEET_TRADES = 'Trades';
 const SHEET_SESSIONS = 'Sessions';
 const SHEET_SETTINGS = 'Settings';
+const SHEET_PREMARKET = 'PreMarket';
 
 const TRADE_HEADERS = ['ID','Date','Time','Direction','Grade','Setup','Outcome','Entry','Exit','Stop','Lots','PnL','Leg1','Leg2','RValue','VIX','SessionState','RedViolation','Notes'];
 const SESSION_HEADERS = ['Date','State','VIX','TradeCount','DayPnL','ConsecutiveLosses','PostMarket_Integration','PostMarket_Missed','PostMarket_Tomorrow'];
 const SETTINGS_HEADERS = ['Key','Value'];
+const PREMARKET_HEADERS = ['Date','BodyState','EmotionalWeather','ReadinessScore','PsychicHygiene_EnergyCleared','PsychicHygiene_WitnessAnchor','PsychicHygiene_RecognitionHunger','PsychicHygiene_Self2Accessible','PsychicHygiene_NoStressBleed','PDClose','HTFBias','KeyLevels','Scenarios','Sankalpa'];
 
 // ═══════════════════════════════════════════════════
 // GOOGLE AUTH
@@ -1574,7 +1576,7 @@ async function initSheetStructure() {
   if (!meta) return;
 
   const existing = (meta.sheets || []).map(s => s.properties.title);
-  const needed = [SHEET_TRADES, SHEET_SESSIONS, SHEET_SETTINGS];
+  const needed = [SHEET_TRADES, SHEET_SESSIONS, SHEET_SETTINGS, SHEET_PREMARKET];
   const toCreate = needed.filter(n => !existing.includes(n));
 
   if (toCreate.length > 0) {
@@ -1595,6 +1597,9 @@ async function initSheetStructure() {
   if (toCreate.includes(SHEET_SETTINGS)) {
     updates.push({ range: `${SHEET_SETTINGS}!A1`, values: [SETTINGS_HEADERS] });
   }
+  if (toCreate.includes(SHEET_PREMARKET)) {
+    updates.push({ range: `${SHEET_PREMARKET}!A1`, values: [PREMARKET_HEADERS] });
+  }
 
   if (updates.length > 0) {
     await sheetsRequest('POST', '/values:batchUpdate', {
@@ -1613,13 +1618,14 @@ async function loadFromSheets() {
   const ranges = [
     `${SHEET_TRADES}!A2:S`,
     `${SHEET_SESSIONS}!A2:I`,
-    `${SHEET_SETTINGS}!A2:B`
+    `${SHEET_SETTINGS}!A2:B`,
+    `${SHEET_PREMARKET}!A2:N`
   ];
 
   const res = await sheetsRequest('GET', `/values:batchGet?ranges=${ranges.map(encodeURIComponent).join('&ranges=')}`);
   if (!res) return;
 
-  const [tradesData, sessionsData, settingsData] = res.valueRanges || [];
+  const [tradesData, sessionsData, settingsData, premarketData] = res.valueRanges || [];
 
   // Parse trades
   const tradeRows = (tradesData && tradesData.values) || [];
@@ -1684,6 +1690,22 @@ async function loadFromSheets() {
     if (r[0] === 'peak') appState.settings.peak = parseFloat(r[1]) || 350000;
     if (r[0] === 'lotSize') appState.settings.lotSize = parseFloat(r[1]) || 25;
   });
+
+  // Parse pre-market — restore today's if exists
+  const pmRows = (premarketData && premarketData.values) || [];
+  const todayPm = pmRows.find(r => r[0] === getTodayStr());
+  if (todayPm) {
+    appState.premarket = {
+      date: todayPm[0] || '',
+      keyLevels: todayPm[11] || '',
+      scenarios: todayPm[12] || '',
+      sankalpa: todayPm[13] || ''
+    };
+    // Restore text fields
+    if (document.getElementById('keyLevels')) document.getElementById('keyLevels').value = appState.premarket.keyLevels;
+    if (document.getElementById('scenarios')) document.getElementById('scenarios').value = appState.premarket.scenarios;
+    if (document.getElementById('sankalpa')) document.getElementById('sankalpa').value = appState.premarket.sankalpa;
+  }
 
   // Update UI
   document.getElementById('cfg-capital').value = appState.settings.capital;
@@ -1772,6 +1794,47 @@ async function syncSettingsToSheets() {
     ['lotSize', s.lotSize]
   ];
   await sheetsRequest('PUT', `/values/${SHEET_SETTINGS}!A2:B5?valueInputOption=RAW`, { values: rows });
+}
+
+async function syncPreMarketToSheets(pm) {
+  if (!syncEnabled) return;
+
+  // Collect checklist states
+  const hygiene = document.querySelectorAll('#psychHygiene .check-box');
+  const hygieneVals = Array.from(hygiene).map(b => b.classList.contains('checked') ? 'YES' : 'NO');
+
+  const bodyPills = Array.from(document.querySelectorAll('#bodyState .pill.sel')).map(p => p.textContent).join(', ');
+  const emotPills = Array.from(document.querySelectorAll('#emotWeather .pill.sel')).map(p => p.textContent).join(', ');
+  const pdPills = Array.from(document.querySelectorAll('#pdClose .pill.sel')).map(p => p.textContent).join(', ');
+  const htfPills = Array.from(document.querySelectorAll('#htfBias .pill.sel')).map(p => p.textContent).join(', ');
+  const readiness = appState.psychScores['readiness'] || '';
+
+  const row = [
+    pm.date,
+    bodyPills,
+    emotPills,
+    readiness,
+    hygieneVals[0] || 'NO',
+    hygieneVals[1] || 'NO',
+    hygieneVals[2] || 'NO',
+    hygieneVals[3] || 'NO',
+    hygieneVals[4] || 'NO',
+    pdPills,
+    htfPills,
+    pm.keyLevels || '',
+    pm.scenarios || '',
+    pm.sankalpa || ''
+  ];
+
+  const existing = await sheetsRequest('GET', `/values/${SHEET_PREMARKET}!A:A`);
+  const dates = ((existing && existing.values) || []).map(r => r[0]);
+  const rowIdx = dates.indexOf(pm.date);
+
+  if (rowIdx > 0) {
+    await sheetsRequest('PUT', `/values/${SHEET_PREMARKET}!A${rowIdx+1}:N${rowIdx+1}?valueInputOption=RAW`, { values: [row] });
+  } else {
+    await sheetsRequest('POST', `/values/${SHEET_PREMARKET}!A:N:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, { values: [row] });
+  }
 }
 
 async function deleteTradeFromSheets(id) {
@@ -2490,7 +2553,8 @@ function savePreMarket() {
     sankalpa: document.getElementById('sankalpa').value
   };
   saveData();
-  showToast('Pre-market saved.');
+  syncPreMarketToSheets(appState.premarket);
+  showToast('Pre-market saved & synced.');
 }
 
 function savePostMarket() {
