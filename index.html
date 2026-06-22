@@ -478,10 +478,10 @@
 <nav class="nav">
   <div class="nav-logo">VAYU</div>
   <div style="display:flex;align-items:center;gap:10px;">
-    <div class="sync-bar" id="syncBar" style="border-radius:20px;padding:4px 10px;">
+    <button class="sync-bar" id="syncBar" style="border-radius:20px;padding:4px 10px;border:none;cursor:pointer;background:var(--surface2);" onclick="handleGoogleSignIn()">
       <span class="sync-dot sync-off" id="syncDot"></span>
-      <span id="syncLabel">Offline</span>
-    </div>
+      <span id="syncLabel">Sign in</span>
+    </button>
     <div class="nav-date" id="navDate"></div>
   </div>
 </nav>
@@ -490,6 +490,17 @@
 
 <!-- ═══ PAGE: SESSION ═══ -->
 <div class="page active" id="page-session">
+
+  <!-- GOOGLE SIGN IN CARD — shown when not connected -->
+  <div class="card" id="signInCard" style="background:rgba(201,168,76,0.06);border-color:var(--gold-dim);">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div>
+        <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Connect Google Sheets</div>
+        <div style="font-size:11px;color:var(--text-dim);">Sign in once to sync across all devices</div>
+      </div>
+      <button class="btn btn-gold btn-sm" style="white-space:nowrap;flex-shrink:0;" onclick="handleGoogleSignIn()">Sign in</button>
+    </div>
+  </div>
 
   <div class="card" style="padding:0; overflow:hidden;">
     <div class="state-display">
@@ -1379,8 +1390,8 @@ const SHEETS_API = 'https://sheets.googleapis.com/v4/spreadsheets';
 const SCOPES = 'https://www.googleapis.com/auth/spreadsheets';
 
 let gConfig = {
-  clientId: '772295957397-43etii5faothmppo1gtero84oirbqk68.apps.googleusercontent.com',
-  sheetId: '1OMbtoKn6llZjXE33S0dNqJS-uMvtNxgdnaBjYAlzWD8',
+  clientId: '',
+  sheetId: '',
   accessToken: '',
   tokenExpiry: 0
 };
@@ -1459,6 +1470,8 @@ function updateGoogleAuthUI(signedIn) {
   const signInBtn = document.getElementById('googleSignInBtn');
   const signOutBtn = document.getElementById('googleSignOutBtn');
   const statusText = document.getElementById('authStatusText');
+  const signInCard = document.getElementById('signInCard');
+  if (signInCard) signInCard.style.display = signedIn ? 'none' : 'block';
   if (!signInBtn) return;
   if (signedIn) {
     signInBtn.style.display = 'none';
