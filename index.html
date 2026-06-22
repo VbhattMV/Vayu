@@ -1413,13 +1413,13 @@ const SETTINGS_HEADERS = ['Key','Value'];
 // GOOGLE AUTH
 // ═══════════════════════════════════════════════════
 function initGoogleAuth() {
-  gConfig.clientId = localStorage.getItem('vayu_clientId') || '';
-  gConfig.sheetId = localStorage.getItem('vayu_sheetId') || '';
+  // Use hardcoded credentials, override with localStorage if set
+  gConfig.clientId = localStorage.getItem('vayu_clientId') || gConfig.clientId;
+  gConfig.sheetId = localStorage.getItem('vayu_sheetId') || gConfig.sheetId;
   gConfig.accessToken = localStorage.getItem('vayu_token') || '';
   gConfig.tokenExpiry = parseInt(localStorage.getItem('vayu_tokenExpiry') || '0');
 
   if (!gConfig.clientId || !gConfig.sheetId) {
-    // First time — show setup
     showSetupScreen();
     return;
   }
@@ -1430,7 +1430,8 @@ function initGoogleAuth() {
     updateSyncUI('ok', 'Synced');
     loadFromSheets();
   } else {
-    updateSyncUI('off', 'Tap to sign in');
+    updateSyncUI('off', 'Sign in');
+    updateGoogleAuthUI(false);
   }
 }
 
