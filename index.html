@@ -867,6 +867,18 @@
     </div>
   </div>
 
+  <!-- EXPIRY CONTEXT -->
+  <div class="card" id="expiryContextCard">
+    <div class="card-title">Expiry Context</div>
+    <div id="expiryDisplay" style="display:flex;align-items:center;gap:14px;padding:4px 0;">
+      <div id="expiryDayBadge" style="font-family:var(--mono);font-size:13px;font-weight:700;padding:6px 14px;border-radius:20px;white-space:nowrap;"></div>
+      <div>
+        <div id="expiryLabel" style="font-size:14px;font-weight:600;"></div>
+        <div id="expiryNote" style="font-size:11px;color:var(--text-dim);margin-top:3px;line-height:1.5;"></div>
+      </div>
+    </div>
+  </div>
+
   <button class="btn btn-gold" onclick="savePreMarket()">Save Pre-Market →</button>
 
 </div>
@@ -2191,6 +2203,50 @@ let appState = {
 // ═══════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════
+function updateExpiryContext() {
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const day = new Date().getDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+  const dayName = days[day];
+
+  const badge = document.getElementById('expiryDayBadge');
+  const label = document.getElementById('expiryLabel');
+  const note = document.getElementById('expiryNote');
+  if (!badge) return;
+
+  let expiryType, expiryColor, expiryBg, expiryBorder, noteText, warningText = '';
+
+  if (day === 1 || day === 2) {
+    // Monday or Tuesday — Next Weekly
+    expiryType = 'NEXT WEEKLY EXPIRY';
+    expiryColor = 'var(--blue)';
+    expiryBg = 'rgba(59,130,246,0.12)';
+    expiryBorder = 'rgba(59,130,246,0.35)';
+    noteText = 'Trading next week\'s expiry options. Higher time value, wider spreads — factor into premium targets.';
+    if (day === 2) warningText = ' ⚠ Expiry day tomorrow — exit all positions by EOD today if holding.';
+  } else if (day >= 3 && day <= 5) {
+    // Wednesday, Thursday, Friday — Current Weekly
+    expiryType = 'CURRENT WEEKLY EXPIRY';
+    expiryColor = 'var(--gold)';
+    expiryBg = 'rgba(201,168,76,0.12)';
+    expiryBorder = 'rgba(201,168,76,0.35)';
+    noteText = 'Trading this week\'s expiry options. Theta decay accelerating — premium moves fast in your favour and against.';
+    if (day === 5) warningText = ' No overnight positions today.';
+  } else {
+    // Weekend — shouldn't be trading
+    expiryType = 'MARKET CLOSED';
+    expiryColor = 'var(--text-muted)';
+    expiryBg = 'var(--surface2)';
+    expiryBorder = 'var(--border2)';
+    noteText = 'Markets closed. Pre-market prep for Monday — next weekly expiry.';
+  }
+
+  badge.textContent = dayName.toUpperCase();
+  badge.style.cssText = `font-family:var(--mono);font-size:13px;font-weight:700;padding:6px 14px;border-radius:20px;white-space:nowrap;background:${expiryBg};color:${expiryColor};border:1px solid ${expiryBorder};`;
+  label.textContent = expiryType;
+  label.style.color = expiryColor;
+  note.textContent = noteText + warningText;
+}
+
 function init() {
   loadData();
   updateNavDate();
@@ -2199,6 +2255,7 @@ function init() {
   renderTradeList();
   renderAnalytics();
   updateRiskTable();
+  updateExpiryContext();
   initGoogleAuth();
 }
 
