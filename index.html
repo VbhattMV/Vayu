@@ -1404,11 +1404,11 @@
       </div>
       <div class="field">
         <label>Exit Premium (₹)</label>
-        <input type="number" id="te-exit" placeholder="175">
+        <input type="number" id="te-exit" placeholder="175" oninput="updateTradePnlPreview()">
       </div>
       <div class="field">
         <label>No. of Lots</label>
-        <input type="number" id="te-lots" placeholder="1" value="1">
+        <input type="number" id="te-lots" placeholder="1" value="1" oninput="updateTradePnlPreview()">
       </div>
     </div>
 
@@ -1839,37 +1839,58 @@ async function initSheetStructure() {
     await sheetsRequest('POST', ':batchUpdate', { requests });
   }
 
-  // Write headers if sheets are new
-  const updates = [];
-  if (toCreate.includes(SHEET_TRADES)) {
-    updates.push({ range: `${SHEET_TRADES}!A1`, values: [TRADE_HEADERS] });
-  }
-  if (toCreate.includes(SHEET_SESSIONS)) {
-    updates.push({ range: `${SHEET_SESSIONS}!A1`, values: [SESSION_HEADERS] });
-  }
-  if (toCreate.includes(SHEET_SETTINGS)) {
-    updates.push({ range: `${SHEET_SETTINGS}!A1`, values: [SETTINGS_HEADERS] });
-  }
-  if (toCreate.includes(SHEET_PREMARKET)) {
-    updates.push({ range: `${SHEET_PREMARKET}!A1`, values: [PREMARKET_HEADERS] });
-  }
+  // Always rewrite headers row 1 on every connect — ensures correct columns even after updates
+  const updates = [
+    { range: `${SHEET_TRADES}!A1`, values: [TRADE_HEADERS] },
+    { range: `${SHEET_SESSIONS}!A1`, values: [SESSION_HEADERS] },
+    { range: `${SHEET_SETTINGS}!A1`, values: [SETTINGS_HEADERS] },
+    { range: `${SHEET_PREMARKET}!A1`, values: [PREMARKET_HEADERS] }
+  ];
 
-  if (updates.length > 0) {
-    await sheetsRequest('POST', '/values:batchUpdate', {
-      valueInputOption: 'RAW',
-      data: updates
-    });
-  }
+  await sheetsRequest('POST', '/values:batchUpdate', {
+    valueInputOption: 'RAW',
+    data: updates
+  });
 }
 
-// ═══════════════════════════════════════════════════
-// LOAD FROM SHEETS (on connect / app open)
-// ═══════════════════════════════════════════════════
+async function syncAllTradesToSheets() {
+  // Push all locally stored trades that aren't yet in the sheet
+  if (!syncEnabled || !appState.trades.length) return;
+
+  const existing = await sheetsRequest('GET', `/values/${SHEET_TRADES}!A:A`);
+  const existingIds = new Set(((existing && existing.values) || []).map(r => String(r[0])));
+
+  const missing = appState.trades.filter(t => !existingIds.has(String(t.id)));
+  if (!missing.length) return;
+
+  const rows = missing.reverse().map(trade => ([
+    trade.id, trade.date, trade.time, trade.direction, trade.grade,
+    trade.setup, trade.outcome,
+    trade.entry, trade.exit, trade.stop,
+    trade.target1||'', trade.target2||'',
+    trade.lots, trade.pnl, trade.rValue,
+    trade.vix, trade.sessionState,
+    trade.redStateViolation ? 'YES' : 'NO',
+    trade.reentryAllowed ? 'YES' : 'NO',
+    trade.reentry ? trade.reentry.entry||'' : '',
+    trade.reentry ? trade.reentry.exit||'' : '',
+    trade.reentry ? trade.reentry.lots||'' : '',
+    trade.reentry ? trade.reentry.outcome||'' : '',
+    trade.reentry ? trade.reentry.pnl||'' : '',
+    trade.notes || ''
+  ]));
+
+  await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:Y:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+    values: rows
+  });
+
+  showToast(`Synced ${missing.length} missing trade${missing.length > 1 ? 's' : ''} to Sheets`);
+}
 async function loadFromSheets() {
   updateSyncUI('pending', 'Loading…');
 
   const ranges = [
-    `${SHEET_TRADES}!A2:S`,
+    `${SHEET_TRADES}!A2:Y`,
     `${SHEET_SESSIONS}!A2:I`,
     `${SHEET_SETTINGS}!A2:B`,
     `${SHEET_PREMARKET}!A2:AK`
@@ -1999,6 +2020,9 @@ async function loadFromSheets() {
   updateGoogleAuthUI(true);
   updateSyncUI('ok', 'Synced');
   showToast('Data loaded from Google Sheets');
+
+  // Push any local trades that aren't in sheets yet
+  await syncAllTradesToSheets();
 }
 
 // ═══════════════════════════════════════════════════
@@ -2023,19 +2047,22 @@ async function syncTradeToSheets(trade) {
     trade.notes || ''
   ];
 
-  // Check if row exists (update) or append
+  // 25 columns: A through Y
+  const colRange = 'Y';
+
+  // Check if this trade ID already exists — compare as string since Sheets returns strings
   const existing = await sheetsRequest('GET', `/values/${SHEET_TRADES}!A:A`);
-  const ids = ((existing && existing.values) || []).map(r => r[0]);
-  const rowIdx = ids.indexOf(trade.id.toString());
+  const ids = ((existing && existing.values) || []).map(r => String(r[0]));
+  const rowIdx = ids.indexOf(String(trade.id));
 
   if (rowIdx > 0) {
-    // Update existing row
-    await sheetsRequest('PUT', `/values/${SHEET_TRADES}!A${rowIdx+1}:S${rowIdx+1}?valueInputOption=RAW`, {
+    // Update existing row — correct range
+    await sheetsRequest('PUT', `/values/${SHEET_TRADES}!A${rowIdx+1}:${colRange}${rowIdx+1}?valueInputOption=RAW`, {
       values: [row]
     });
   } else {
     // Append new row
-    await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:S:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+    await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:${colRange}:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
       values: [row]
     });
   }
@@ -2545,7 +2572,7 @@ function calcRisk() {
 function selectDirection(dir) {
   appState.tradeDirection = dir;
   document.querySelectorAll('#direction .pill').forEach(p => {
-    p.classList.toggle('sel', p.textContent === dir);
+    p.classList.toggle('sel', p.textContent.startsWith(dir));
   });
   calcRisk();
 }
@@ -2577,10 +2604,9 @@ function saveTrade() {
     return;
   }
 
-  // P&L = (exit - entry) × lots × 65 for long buy
-  const dir = dirEl ? dirEl.textContent : 'Long (Buy)';
-  const isLong = dir.includes('Long');
-  const pnl = (isLong ? (exit - entry) : (entry - exit)) * lots * LOT_SIZE;
+  // P&L = (exit - entry) × lots × 65 for ALL trades — both CE Buy and PE Buy are buys
+  const dir = dirEl ? dirEl.textContent : 'Long (CE Buy)';
+  const pnl = (exit - entry) * lots * LOT_SIZE;
   const rValue = stop ? (Math.abs(exit - entry) / Math.abs(entry - stop)).toFixed(2) : '—';
 
   // Re-entry
@@ -2597,7 +2623,7 @@ function saveTrade() {
     const reStop = parseFloat(reStopEl?.value) || null;
     const reLots = parseFloat(reLotsEl?.value) || 1;
     const reOutcome = reOutcomeEl ? reOutcomeEl.textContent : 'Not taken';
-    const rePnl = (reEntry && reExit) ? ((isLong ? (reExit - reEntry) : (reEntry - reExit)) * reLots * LOT_SIZE) : 0;
+    const rePnl = (reEntry && reExit) ? ((reExit - reEntry) * reLots * LOT_SIZE) : 0;
 
     reentry = {
       entry: reEntry, exit: reExit, stop: reStop,
@@ -2666,6 +2692,24 @@ function resetTradeEntryForm() {
   if (rs) rs.style.display = 'none';
   const preview = document.getElementById('te-pnl-preview');
   if (preview) preview.style.display = 'none';
+}
+
+function updateTradePnlPreview() {
+  const entry = parseFloat(document.getElementById('te-entry').value);
+  const exit = parseFloat(document.getElementById('te-exit').value);
+  const lots = parseFloat(document.getElementById('te-lots').value) || 1;
+  const preview = document.getElementById('te-pnl-preview');
+  const valEl = document.getElementById('te-pnl-val');
+  const breakEl = document.getElementById('te-pnl-breakdown');
+
+  if (!entry || !exit) { preview.style.display = 'none'; return; }
+
+  // Always (exit - entry) × lots × 65
+  const pnl = (exit - entry) * lots * 65;
+  preview.style.display = 'block';
+  valEl.textContent = (pnl >= 0 ? '+₹' : '−₹') + Math.abs(Math.round(pnl)).toLocaleString('en-IN');
+  valEl.style.color = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+  breakEl.textContent = `(${exit} − ${entry}) × ${lots} lot${lots > 1 ? 's' : ''} × 65 = ₹${Math.abs(Math.round(pnl)).toLocaleString('en-IN')}`;
 }
 
 function toggleReentrySection() {
