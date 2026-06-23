@@ -1933,6 +1933,19 @@ async function loadFromSheets() {
       } : null,
       notes: r[24] || ''
     }));
+
+    // Recalculate P&L with correct formula for all loaded trades
+    appState.trades.forEach(t => {
+      if (t.entry && t.exit && t.lots) {
+        const correctPnl = (t.exit - t.entry) * t.lots * 65;
+        const reentryPnl = (t.reentry && t.reentry.entry && t.reentry.exit)
+          ? (t.reentry.exit - t.reentry.entry) * (t.reentry.lots || 1) * 65
+          : 0;
+        t.pnl = correctPnl + reentryPnl;
+        t.mainPnl = correctPnl;
+        if (t.reentry) t.reentry.pnl = reentryPnl;
+      }
+    });
   }
 
   // Parse sessions
@@ -2295,6 +2308,41 @@ function loadData() {
       appState.dailySessions = d.dailySessions || [];
       appState.settings = { ...appState.settings, ...(d.settings || {}) };
 
+      // MIGRATION: Recalculate P&L for all trades using correct formula
+      // Both CE Buy (Long) and PE Buy (Short) are buys — always (exit - entry) × lots × 65
+      let migrated = false;
+      appState.trades.forEach(t => {
+        if (t.entry && t.exit && t.lots) {
+          const correctPnl = (t.exit - t.entry) * t.lots * 65;
+          const reentryPnl = (t.reentry && t.reentry.entry && t.reentry.exit)
+            ? (t.reentry.exit - t.reentry.entry) * (t.reentry.lots || 1) * 65
+            : 0;
+          const correctTotal = correctPnl + reentryPnl;
+          if (Math.abs(correctTotal - t.pnl) > 0.01) {
+            t.pnl = correctTotal;
+            t.mainPnl = correctPnl;
+            if (t.reentry) t.reentry.pnl = reentryPnl;
+            migrated = true;
+          }
+        }
+      });
+      if (migrated) {
+        // Recalculate dayPnl for all sessions from corrected trades
+        const byDay = {};
+        appState.trades.forEach(t => {
+          byDay[t.date] = (byDay[t.date] || 0) + t.pnl;
+        });
+        appState.dailySessions.forEach(s => {
+          if (byDay[s.date] !== undefined) s.dayPnl = byDay[s.date];
+        });
+        // Save corrected data
+        localStorage.setItem('vayu_data', JSON.stringify({
+          trades: appState.trades,
+          dailySessions: appState.dailySessions,
+          settings: appState.settings
+        }));
+      }
+
       // Load today's session if same day
       const today = getTodayStr();
       const todaySess = (d.dailySessions || []).find(s => s.date === today);
@@ -2302,7 +2350,7 @@ function loadData() {
         appState.sessionState = todaySess.state || 'NEUTRAL';
         appState.vix = todaySess.vix || 'normal';
         appState.tradeCount = todaySess.tradeCount || 0;
-        appState.dayPnl = todaySess.dayPnl || 0;
+        appState.dayPnl = byDay ? (byDay[today] || 0) : (todaySess.dayPnl || 0);
         appState.consecutiveLosses = todaySess.consecutiveLosses || 0;
       }
     }
