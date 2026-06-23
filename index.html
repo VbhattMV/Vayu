@@ -2018,6 +2018,58 @@ async function loadFromSheets() {
     setTimeout(calcSessionBias, 100);
   }
 
+  // CRITICAL: Recalculate all P&L after loading from Sheets
+  // Both CE Buy and PE Buy = always (exit - entry) × lots × 65
+  let needsCorrection = false;
+  appState.trades.forEach(t => {
+    if (t.entry && t.exit && t.lots) {
+      const correct = (t.exit - t.entry) * t.lots * 65;
+      const reCorrect = (t.reentry && t.reentry.entry && t.reentry.exit)
+        ? (t.reentry.exit - t.reentry.entry) * (t.reentry.lots || 1) * 65 : 0;
+      const correctTotal = correct + reCorrect;
+      if (Math.abs(correctTotal - t.pnl) > 0.01) {
+        t.pnl = correctTotal;
+        t.mainPnl = correct;
+        if (t.reentry) t.reentry.pnl = reCorrect;
+        needsCorrection = true;
+      }
+    }
+  });
+
+  // Recalculate dayPnl for today from corrected trades
+  const today = getTodayStr();
+  const todayCorrectPnl = appState.trades
+    .filter(t => t.date === today)
+    .reduce((a, t) => a + t.pnl, 0);
+  appState.dayPnl = todayCorrectPnl;
+  const todaySession = appState.dailySessions.find(s => s.date === today);
+  if (todaySession) todaySession.dayPnl = todayCorrectPnl;
+
+  // If any trade had wrong P&L, overwrite ALL trades in Sheet with correct values
+  if (needsCorrection) {
+    const allRows = [...appState.trades].reverse().map(trade => ([
+      trade.id, trade.date, trade.time, trade.direction, trade.grade,
+      trade.setup, trade.outcome,
+      trade.entry, trade.exit, trade.stop,
+      trade.target1||'', trade.target2||'',
+      trade.lots, trade.pnl, trade.rValue,
+      trade.vix, trade.sessionState,
+      trade.redStateViolation ? 'YES' : 'NO',
+      trade.reentryAllowed ? 'YES' : 'NO',
+      trade.reentry ? trade.reentry.entry||'' : '',
+      trade.reentry ? trade.reentry.exit||'' : '',
+      trade.reentry ? trade.reentry.lots||'' : '',
+      trade.reentry ? trade.reentry.outcome||'' : '',
+      trade.reentry ? trade.reentry.pnl||'' : '',
+      trade.notes || ''
+    ]));
+    // Clear data rows and rewrite with correct P&L
+    await sheetsRequest('PUT', `/values/${SHEET_TRADES}!A2:Y?valueInputOption=RAW`, {
+      values: allRows
+    });
+    showToast('P&L corrected in Google Sheets ✓');
+  }
+
   // Update UI
   document.getElementById('cfg-capital').value = appState.settings.capital;
   document.getElementById('cfg-buffer').value = appState.settings.buffer;
