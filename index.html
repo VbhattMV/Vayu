@@ -2595,7 +2595,7 @@ function saveTrade() {
     const reStop = parseFloat(reStopEl?.value) || null;
     const reLots = parseFloat(reLotsEl?.value) || 1;
     const reOutcome = reOutcomeEl ? reOutcomeEl.textContent : 'Not taken';
-    const rePnl = (reEntry && reExit) ? ((isLong ? (reExit - reEntry) : (reEntry - reExit)) * reLots * LOT_SIZE) : 0;
+    const rePnl = (reEntry && reExit) ? (reExit - reEntry) * reLots * LOT_SIZE) : 0;
 
     reentry = {
       entry: reEntry, exit: reExit, stop: reStop,
