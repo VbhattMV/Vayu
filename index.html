@@ -678,18 +678,165 @@
     </div>
   </div>
 
+  <!-- SESSION DATA INPUT -->
+  <div class="card">
+    <div class="card-title">Previous Session Data</div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="field">
+        <label>PDH</label>
+        <input type="number" id="sd-pdh" placeholder="24700" oninput="calcSessionBias()">
+      </div>
+      <div class="field">
+        <label>PDL</label>
+        <input type="number" id="sd-pdl" placeholder="24500" oninput="calcSessionBias()">
+      </div>
+      <div class="field">
+        <label>Prev Day Close</label>
+        <input type="number" id="sd-pdclose" placeholder="24620" oninput="calcSessionBias()">
+      </div>
+      <div class="field">
+        <label>Today Pre-Open</label>
+        <input type="number" id="sd-preopen" placeholder="24650" oninput="calcSessionBias()">
+      </div>
+    </div>
+
+    <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin:12px 0 8px;">Previous Day Volume Profile</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+      <div class="field">
+        <label>PD VAH</label>
+        <input type="number" id="sd-pdvah" placeholder="24680" oninput="calcSessionBias()">
+      </div>
+      <div class="field">
+        <label>PD VAL</label>
+        <input type="number" id="sd-pdval" placeholder="24540" oninput="calcSessionBias()">
+      </div>
+      <div class="field">
+        <label>PD POC</label>
+        <input type="number" id="sd-pdpoc" placeholder="24610" oninput="calcSessionBias()">
+      </div>
+    </div>
+
+    <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin:12px 0 8px;">Exp Previous Day (EPD)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+      <div class="field">
+        <label>EPD VAH</label>
+        <input type="number" id="sd-epdvah" placeholder="24690" oninput="calcSessionBias()">
+      </div>
+      <div class="field">
+        <label>EPD VAL</label>
+        <input type="number" id="sd-epdval" placeholder="24530" oninput="calcSessionBias()">
+      </div>
+      <div class="field">
+        <label>EPD POC</label>
+        <input type="number" id="sd-epdpoc" placeholder="24600" oninput="calcSessionBias()">
+      </div>
+    </div>
+
+    <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin:12px 0 8px;">Previous Week (PW)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+      <div class="field">
+        <label>PW VAH</label>
+        <input type="number" id="sd-pwvah" placeholder="" oninput="calcSessionBias()">
+      </div>
+      <div class="field">
+        <label>PW VAL</label>
+        <input type="number" id="sd-pwval" placeholder="" oninput="calcSessionBias()">
+      </div>
+      <div class="field">
+        <label>PW POC</label>
+        <input type="number" id="sd-pwpoc" placeholder="" oninput="calcSessionBias()">
+      </div>
+    </div>
+
+    <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin:12px 0 8px;">Current Week (CW)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+      <div class="field">
+        <label>CW VAH</label>
+        <input type="number" id="sd-cwvah" placeholder="" oninput="calcSessionBias()">
+      </div>
+      <div class="field">
+        <label>CW VAL</label>
+        <input type="number" id="sd-cwval" placeholder="" oninput="calcSessionBias()">
+      </div>
+      <div class="field">
+        <label>CW POC</label>
+        <input type="number" id="sd-cwpoc" placeholder="" oninput="calcSessionBias()">
+      </div>
+    </div>
+
+    <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin:12px 0 8px;">Exp Previous Week (EPW)</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;">
+      <div class="field">
+        <label>EPW VAH</label>
+        <input type="number" id="sd-epwvah" placeholder="" oninput="calcSessionBias()">
+      </div>
+      <div class="field">
+        <label>EPW VAL</label>
+        <input type="number" id="sd-epwval" placeholder="" oninput="calcSessionBias()">
+      </div>
+      <div class="field">
+        <label>EPW POC</label>
+        <input type="number" id="sd-epwpoc" placeholder="" oninput="calcSessionBias()">
+      </div>
+    </div>
+
+    <!-- CALCULATED OUTPUT -->
+    <div id="sessionBiasOutput" style="display:none;margin-top:16px;">
+      <div style="height:1px;background:var(--border);margin-bottom:16px;"></div>
+
+      <!-- GAP -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Gap Analysis</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface2);border-radius:8px;padding:12px;">
+          <div>
+            <div style="font-size:11px;color:var(--text-dim);">Pre-Open vs Prev Close</div>
+            <div style="font-family:var(--mono);font-size:22px;font-weight:600;" id="gapValue">—</div>
+          </div>
+          <div id="gapBadge" style="font-size:12px;font-weight:700;padding:6px 14px;border-radius:20px;font-family:var(--mono);">—</div>
+        </div>
+      </div>
+
+      <!-- BIAS — Daily -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Daily Bias — PD POC vs EPD POC vs Open</div>
+        <div style="background:var(--surface2);border-radius:8px;padding:12px;">
+          <div style="font-family:var(--mono);font-size:20px;font-weight:700;margin-bottom:6px;" id="biasLabel">—</div>
+          <div style="font-size:12px;color:var(--text-dim);line-height:1.6;" id="biasReason">—</div>
+        </div>
+      </div>
+
+      <!-- BIAS — Weekly -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Weekly Bias — PW POC vs EPW POC vs CW POC vs Open</div>
+        <div style="background:var(--surface2);border-radius:8px;padding:12px;">
+          <div style="font-family:var(--mono);font-size:20px;font-weight:700;margin-bottom:6px;" id="weeklyBiasLabel">—</div>
+          <div style="font-size:12px;color:var(--text-dim);line-height:1.6;" id="weeklyBiasReason">—</div>
+        </div>
+      </div>
+
+      <!-- KEY LEVELS CONTEXT -->
+      <div>
+        <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Key Levels Ranked (nearest to open)</div>
+        <div id="levelsRanked" style="font-family:var(--mono);font-size:12px;line-height:2;"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- MARKET STRUCTURE PREP -->
   <div class="card">
     <div class="card-title">Market Structure Read</div>
     <div class="field">
-      <label>Previous Day Close Context</label>
+      <label>Previous Day Close Context (FRVP)</label>
       <div class="pill-row" id="pdClose">
-        <div class="pill" onclick="togglePill(this,'pdClose')">Above VWAP</div>
-        <div class="pill" onclick="togglePill(this,'pdClose')">Below VWAP</div>
-        <div class="pill" onclick="togglePill(this,'pdClose')">At POC</div>
-        <div class="pill" onclick="togglePill(this,'pdClose')">Virgin POC nearby</div>
-        <div class="pill" onclick="togglePill(this,'pdClose')">Balanced</div>
-        <div class="pill" onclick="togglePill(this,'pdClose')">Trending</div>
+        <div class="pill" onclick="togglePill(this,'pdClose')">At PD POC</div>
+        <div class="pill" onclick="togglePill(this,'pdClose')">Above PD POC</div>
+        <div class="pill" onclick="togglePill(this,'pdClose')">Below PD POC</div>
+        <div class="pill" onclick="togglePill(this,'pdClose')">At PD VAH</div>
+        <div class="pill" onclick="togglePill(this,'pdClose')">At PD VAL</div>
+        <div class="pill" onclick="togglePill(this,'pdClose')">At EPD POC</div>
+        <div class="pill" onclick="togglePill(this,'pdClose')">Outside Value Area</div>
+        <div class="pill" onclick="togglePill(this,'pdClose')">Inside Value Area</div>
       </div>
     </div>
     <div class="field">
@@ -870,27 +1017,52 @@
   <div class="card">
     <div class="card-title">Position Sizing Calculator</div>
 
+    <!-- Grade descriptions -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px;">
+      <div style="background:rgba(34,197,94,0.08);border:1px solid rgba(34,197,94,0.2);border-radius:8px;padding:8px;text-align:center;">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--green);font-weight:700;">A+</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:3px;line-height:1.4;">18–20 pts. Highest confluence. All conditions perfect. Max size.</div>
+      </div>
+      <div style="background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.2);border-radius:8px;padding:8px;text-align:center;">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--gold);font-weight:700;">A</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:3px;line-height:1.4;">15–17 pts. Strong setup. Minor ambiguity. Standard size.</div>
+      </div>
+      <div style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;padding:8px;text-align:center;">
+        <div style="font-family:var(--mono);font-size:11px;color:var(--blue);font-weight:700;">B</div>
+        <div style="font-size:10px;color:var(--text-dim);margin-top:3px;line-height:1.4;">12–14 pts. Valid but lower conviction. Half size only.</div>
+      </div>
+    </div>
+
     <div class="field">
-      <label>Trade Grade (auto from score)</label>
+      <label>Trade Grade (auto from checklist score)</label>
       <div id="tradeGradeDisplay" style="font-family:var(--mono);font-size:14px;color:var(--text-dim);padding:8px 0;">Score the checklist above first</div>
     </div>
 
+    <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Option Premium Prices</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="field">
-        <label>Entry Price</label>
-        <input type="number" id="entryPrice" placeholder="23450" oninput="calcRisk()">
+        <label>Entry Premium (₹)</label>
+        <input type="number" id="entryPrice" placeholder="120" oninput="calcRisk()">
       </div>
       <div class="field">
-        <label>Stop Loss Price</label>
-        <input type="number" id="stopPrice" placeholder="23415" oninput="calcRisk()">
+        <label>SL Premium (₹)</label>
+        <input type="number" id="stopPrice" placeholder="80" oninput="calcRisk()">
+      </div>
+      <div class="field">
+        <label>Target 1 Premium (₹)</label>
+        <input type="number" id="target1Price" placeholder="180" oninput="calcRisk()">
+      </div>
+      <div class="field">
+        <label>Target 2 Premium (₹)</label>
+        <input type="number" id="target2Price" placeholder="240" oninput="calcRisk()">
       </div>
     </div>
 
     <div class="field">
       <label>Direction</label>
       <div class="pill-row" id="direction">
-        <div class="pill" onclick="selectDirection('Long')">Long</div>
-        <div class="pill" onclick="selectDirection('Short')">Short</div>
+        <div class="pill" onclick="selectDirection('Long')">Long (CE Buy)</div>
+        <div class="pill" onclick="selectDirection('Short')">Short (PE Buy)</div>
       </div>
     </div>
 
@@ -900,16 +1072,24 @@
         <div class="rval neutral-col" id="riskAmt">—</div>
       </div>
       <div class="risk-item">
-        <div class="rlabel">Stop Distance</div>
+        <div class="rlabel">SL Distance</div>
         <div class="rval" id="stopDist">—</div>
       </div>
       <div class="risk-item">
-        <div class="rlabel">Lot Suggestion</div>
+        <div class="rlabel">Lots (65 units)</div>
         <div class="rval neutral-col" id="lotSug">—</div>
       </div>
       <div class="risk-item">
-        <div class="rlabel">Leg 1 Target</div>
+        <div class="rlabel">Max Risk (lots×SL×65)</div>
+        <div class="rval negative" id="maxRisk">—</div>
+      </div>
+      <div class="risk-item">
+        <div class="rlabel">Target 1 P&L</div>
         <div class="rval positive" id="leg1Target">—</div>
+      </div>
+      <div class="risk-item">
+        <div class="rlabel">Target 2 P&L</div>
+        <div class="rval positive" id="leg2Target">—</div>
       </div>
     </div>
 
@@ -1112,7 +1292,7 @@
     <div class="card-title">Nifty Lot Size</div>
     <div class="field">
       <label>Current Lot Size (units)</label>
-      <input type="number" id="cfg-lotsize" value="25" onchange="saveSettings()">
+      <input type="number" id="cfg-lotsize" value="65" onchange="saveSettings()">
     </div>
   </div>
 
@@ -1191,30 +1371,40 @@
     <div class="modal-handle"></div>
     <h3>Log Trade</h3>
 
+    <!-- Option Premium Prices -->
+    <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Option Premium Prices</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="field">
-        <label>Entry Price</label>
-        <input type="number" id="te-entry" placeholder="23450">
+        <label>Entry Premium (₹)</label>
+        <input type="number" id="te-entry" placeholder="120">
       </div>
       <div class="field">
-        <label>Exit Price</label>
-        <input type="number" id="te-exit" placeholder="23490">
+        <label>SL Premium (₹)</label>
+        <input type="number" id="te-stop" placeholder="80">
       </div>
       <div class="field">
-        <label>Stop Price</label>
-        <input type="number" id="te-stop" placeholder="23415">
+        <label>Target 1 Premium (₹)</label>
+        <input type="number" id="te-target1" placeholder="180">
       </div>
       <div class="field">
-        <label>Lots</label>
-        <input type="number" id="te-lots" placeholder="1">
+        <label>Target 2 Premium (₹)</label>
+        <input type="number" id="te-target2" placeholder="240">
+      </div>
+      <div class="field">
+        <label>Exit Premium (₹)</label>
+        <input type="number" id="te-exit" placeholder="175">
+      </div>
+      <div class="field">
+        <label>No. of Lots</label>
+        <input type="number" id="te-lots" placeholder="1" value="1">
       </div>
     </div>
 
     <div class="field">
       <label>Direction</label>
       <div class="pill-row" id="te-dir">
-        <div class="pill" onclick="togglePill(this,'te-dir')">Long</div>
-        <div class="pill" onclick="togglePill(this,'te-dir')">Short</div>
+        <div class="pill" onclick="togglePill(this,'te-dir')">Long (CE Buy)</div>
+        <div class="pill" onclick="togglePill(this,'te-dir')">Short (PE Buy)</div>
       </div>
     </div>
 
@@ -1236,24 +1426,68 @@
       </div>
     </div>
 
+    <!-- Setup Type — multi select -->
     <div class="field">
-      <label>Leg 1 P&L (₹)</label>
-      <input type="number" id="te-leg1" placeholder="2800">
-    </div>
-    <div class="field">
-      <label>Leg 2 P&L (₹) — leave 0 if not used</label>
-      <input type="number" id="te-leg2" placeholder="1200">
+      <label>Setup Type (multi-select)</label>
+      <div class="pill-row" id="te-setup" style="flex-wrap:wrap;">
+        <div class="pill" onclick="toggleMultiPill(this)">POC Tap</div>
+        <div class="pill" onclick="toggleMultiPill(this)">Virgin POC Sweep</div>
+        <div class="pill" onclick="toggleMultiPill(this)">VAH Tap</div>
+        <div class="pill" onclick="toggleMultiPill(this)">VAL Tap</div>
+        <div class="pill" onclick="toggleMultiPill(this)">POC Breakout</div>
+        <div class="pill" onclick="toggleMultiPill(this)">POC Breakdown</div>
+        <div class="pill" onclick="toggleMultiPill(this)">Other</div>
+      </div>
     </div>
 
-    <div class="field">
-      <label>Setup Type</label>
-      <div class="pill-row" id="te-setup">
-        <div class="pill" onclick="togglePill(this,'te-setup')">POC Bounce</div>
-        <div class="pill" onclick="togglePill(this,'te-setup')">Virgin POC Sweep</div>
-        <div class="pill" onclick="togglePill(this,'te-setup')">V-Reversal</div>
-        <div class="pill" onclick="togglePill(this,'te-setup')">VAH/VAL Fade</div>
-        <div class="pill" onclick="togglePill(this,'te-setup')">Breakout</div>
-        <div class="pill" onclick="togglePill(this,'te-setup')">Other</div>
+    <!-- Re-entry checkbox -->
+    <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:14px;margin-bottom:14px;">
+      <div class="toggle-row" style="margin-bottom:0;">
+        <span class="toggle-label" style="font-weight:600;">Re-entry allowed on this trade?</span>
+        <label class="toggle">
+          <input type="checkbox" id="te-reentry-allowed" onchange="toggleReentrySection()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <!-- Re-entry details — shown only when toggled -->
+      <div id="reentry-section" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px;">
+        <div style="font-size:11px;color:var(--gold);letter-spacing:0.8px;text-transform:uppercase;margin-bottom:10px;">Re-entry Details</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="field">
+            <label>Re-entry Premium (₹)</label>
+            <input type="number" id="te-re-entry" placeholder="95">
+          </div>
+          <div class="field">
+            <label>Re-entry SL (₹)</label>
+            <input type="number" id="te-re-stop" placeholder="70">
+          </div>
+          <div class="field">
+            <label>Re-entry Target 1 (₹)</label>
+            <input type="number" id="te-re-target1" placeholder="150">
+          </div>
+          <div class="field">
+            <label>Re-entry Target 2 (₹)</label>
+            <input type="number" id="te-re-target2" placeholder="200">
+          </div>
+          <div class="field">
+            <label>Re-entry Exit (₹)</label>
+            <input type="number" id="te-re-exit" placeholder="145">
+          </div>
+          <div class="field">
+            <label>Re-entry Lots</label>
+            <input type="number" id="te-re-lots" placeholder="1" value="1">
+          </div>
+        </div>
+        <div class="field">
+          <label>Re-entry Outcome</label>
+          <div class="pill-row" id="te-re-outcome">
+            <div class="pill" onclick="togglePill(this,'te-re-outcome')">Win</div>
+            <div class="pill" onclick="togglePill(this,'te-re-outcome')">Loss</div>
+            <div class="pill" onclick="togglePill(this,'te-re-outcome')">Breakeven</div>
+            <div class="pill" onclick="togglePill(this,'te-re-outcome')">Not taken</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1268,6 +1502,13 @@
     <div class="field">
       <label>Trade Notes</label>
       <textarea id="te-notes" placeholder="What did you see? What was the read? How did body feel at entry?"></textarea>
+    </div>
+
+    <!-- Calculated P&L preview -->
+    <div id="te-pnl-preview" style="display:none;background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:12px;">
+      <div style="font-size:10px;color:var(--text-dim);letter-spacing:0.8px;text-transform:uppercase;margin-bottom:6px;">Calculated P&L</div>
+      <div style="font-family:var(--mono);font-size:22px;font-weight:600;" id="te-pnl-val">—</div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:3px;" id="te-pnl-breakdown">—</div>
     </div>
 
     <button class="btn btn-gold mt12" onclick="saveTrade()">Save Trade</button>
@@ -1406,10 +1647,10 @@ const SHEET_SESSIONS = 'Sessions';
 const SHEET_SETTINGS = 'Settings';
 const SHEET_PREMARKET = 'PreMarket';
 
-const TRADE_HEADERS = ['ID','Date','Time','Direction','Grade','Setup','Outcome','Entry','Exit','Stop','Lots','PnL','Leg1','Leg2','RValue','VIX','SessionState','RedViolation','Notes'];
+const TRADE_HEADERS = ['ID','Date','Time','Direction','Grade','Setup','Outcome','EntryPremium','ExitPremium','SLPremium','Target1Premium','Target2Premium','Lots','PnL','RValue','VIX','SessionState','RedViolation','ReentryAllowed','Reentry_Entry','Reentry_Exit','Reentry_Lots','Reentry_Outcome','Reentry_PnL','Notes'];
 const SESSION_HEADERS = ['Date','State','VIX','TradeCount','DayPnL','ConsecutiveLosses','PostMarket_Integration','PostMarket_Missed','PostMarket_Tomorrow'];
 const SETTINGS_HEADERS = ['Key','Value'];
-const PREMARKET_HEADERS = ['Date','BodyState','EmotionalWeather','ReadinessScore','PsychicHygiene_EnergyCleared','PsychicHygiene_WitnessAnchor','PsychicHygiene_RecognitionHunger','PsychicHygiene_Self2Accessible','PsychicHygiene_NoStressBleed','PDClose','HTFBias','KeyLevels','Scenarios','Sankalpa'];
+const PREMARKET_HEADERS = ['Date','BodyState','EmotionalWeather','ReadinessScore','PsychicHygiene_EnergyCleared','PsychicHygiene_WitnessAnchor','PsychicHygiene_RecognitionHunger','PsychicHygiene_Self2Accessible','PsychicHygiene_NoStressBleed','PDClose_Context','HTFBias','KeyLevels','Scenarios','Sankalpa','PDH','PDL','PrevDayClose','PreOpen','Gap','GapType','OpeningBias','BiasReason','PD_VAH','PD_VAL','PD_POC','EPD_VAH','EPD_VAL','EPD_POC','PW_VAH','PW_VAL','PW_POC','CW_VAH','CW_VAL','CW_POC','EPW_VAH','EPW_VAL','EPW_POC'];
 
 // ═══════════════════════════════════════════════════
 // GOOGLE AUTH
@@ -1619,7 +1860,7 @@ async function loadFromSheets() {
     `${SHEET_TRADES}!A2:S`,
     `${SHEET_SESSIONS}!A2:I`,
     `${SHEET_SETTINGS}!A2:B`,
-    `${SHEET_PREMARKET}!A2:N`
+    `${SHEET_PREMARKET}!A2:AK`
   ];
 
   const res = await sheetsRequest('GET', `/values:batchGet?ranges=${ranges.map(encodeURIComponent).join('&ranges=')}`);
@@ -1641,15 +1882,23 @@ async function loadFromSheets() {
       entry: parseFloat(r[7]) || 0,
       exit: parseFloat(r[8]) || 0,
       stop: parseFloat(r[9]) || 0,
-      lots: parseFloat(r[10]) || 1,
-      pnl: parseFloat(r[11]) || 0,
-      leg1: parseFloat(r[12]) || 0,
-      leg2: parseFloat(r[13]) || 0,
+      target1: parseFloat(r[10]) || null,
+      target2: parseFloat(r[11]) || null,
+      lots: parseFloat(r[12]) || 1,
+      pnl: parseFloat(r[13]) || 0,
       rValue: r[14] || '—',
       vix: r[15] || 'normal',
       sessionState: r[16] || 'NEUTRAL',
       redStateViolation: r[17] === 'YES',
-      notes: r[18] || ''
+      reentryAllowed: r[18] === 'YES',
+      reentry: r[19] ? {
+        entry: parseFloat(r[19])||null,
+        exit: parseFloat(r[20])||null,
+        lots: parseFloat(r[21])||1,
+        outcome: r[22]||'',
+        pnl: parseFloat(r[23])||0
+      } : null,
+      notes: r[24] || ''
     }));
   }
 
@@ -1688,7 +1937,7 @@ async function loadFromSheets() {
     if (r[0] === 'capital') appState.settings.capital = parseFloat(r[1]) || 350000;
     if (r[0] === 'buffer') appState.settings.buffer = parseFloat(r[1]) || 75000;
     if (r[0] === 'peak') appState.settings.peak = parseFloat(r[1]) || 350000;
-    if (r[0] === 'lotSize') appState.settings.lotSize = parseFloat(r[1]) || 25;
+    if (r[0] === 'lotSize') appState.settings.lotSize = parseFloat(r[1]) || 65;
   });
 
   // Parse pre-market — restore today's if exists
@@ -1705,6 +1954,22 @@ async function loadFromSheets() {
     if (document.getElementById('keyLevels')) document.getElementById('keyLevels').value = appState.premarket.keyLevels;
     if (document.getElementById('scenarios')) document.getElementById('scenarios').value = appState.premarket.scenarios;
     if (document.getElementById('sankalpa')) document.getElementById('sankalpa').value = appState.premarket.sankalpa;
+
+    // Restore session data numeric fields
+    const sdMap = {
+      'sd-pdh': 14, 'sd-pdl': 15, 'sd-pdclose': 16, 'sd-preopen': 17,
+      'sd-pdvah': 22, 'sd-pdval': 23, 'sd-pdpoc': 24,
+      'sd-epdvah': 25, 'sd-epdval': 26, 'sd-epdpoc': 27,
+      'sd-pwvah': 28, 'sd-pwval': 29, 'sd-pwpoc': 30,
+      'sd-cwvah': 31, 'sd-cwval': 32, 'sd-cwpoc': 33,
+      'sd-epwvah': 34, 'sd-epwval': 35, 'sd-epwpoc': 36
+    };
+    Object.entries(sdMap).forEach(([id, idx]) => {
+      const el = document.getElementById(id);
+      if (el && todayPm[idx]) el.value = todayPm[idx];
+    });
+    // Recalculate bias display
+    setTimeout(calcSessionBias, 100);
   }
 
   // Update UI
@@ -1731,9 +1996,18 @@ async function syncTradeToSheets(trade) {
   if (!syncEnabled) return;
   const row = [
     trade.id, trade.date, trade.time, trade.direction, trade.grade,
-    trade.setup, trade.outcome, trade.entry, trade.exit, trade.stop,
-    trade.lots, trade.pnl, trade.leg1||0, trade.leg2||0, trade.rValue,
-    trade.vix, trade.sessionState, trade.redStateViolation ? 'YES' : 'NO',
+    trade.setup, trade.outcome,
+    trade.entry, trade.exit, trade.stop,
+    trade.target1||'', trade.target2||'',
+    trade.lots, trade.pnl, trade.rValue,
+    trade.vix, trade.sessionState,
+    trade.redStateViolation ? 'YES' : 'NO',
+    trade.reentryAllowed ? 'YES' : 'NO',
+    trade.reentry ? trade.reentry.entry||'' : '',
+    trade.reentry ? trade.reentry.exit||'' : '',
+    trade.reentry ? trade.reentry.lots||'' : '',
+    trade.reentry ? trade.reentry.outcome||'' : '',
+    trade.reentry ? trade.reentry.pnl||'' : '',
     trade.notes || ''
   ];
 
@@ -1809,6 +2083,19 @@ async function syncPreMarketToSheets(pm) {
   const htfPills = Array.from(document.querySelectorAll('#htfBias .pill.sel')).map(p => p.textContent).join(', ');
   const readiness = appState.psychScores['readiness'] || '';
 
+  // Session data fields
+  const g = id => parseFloat(document.getElementById(id)?.value) || '';
+  const pdClose = g('sd-pdclose');
+  const preOpen = g('sd-preopen');
+  const gap = (pdClose && preOpen) ? (preOpen - pdClose).toFixed(1) : '';
+  const gapType = gap ? (parseFloat(gap) > 5 ? 'Gap Up' : parseFloat(gap) < -5 ? 'Gap Down' : 'Flat') : '';
+
+  // Bias from current display
+  const biasEl = document.getElementById('biasLabel');
+  const biasReasonEl = document.getElementById('biasReason');
+  const bias = biasEl ? biasEl.textContent : '';
+  const biasReason = biasReasonEl ? biasReasonEl.textContent : '';
+
   const row = [
     pm.date,
     bodyPills,
@@ -1823,7 +2110,20 @@ async function syncPreMarketToSheets(pm) {
     htfPills,
     pm.keyLevels || '',
     pm.scenarios || '',
-    pm.sankalpa || ''
+    pm.sankalpa || '',
+    g('sd-pdh'),
+    g('sd-pdl'),
+    pdClose,
+    preOpen,
+    gap,
+    gapType,
+    bias,
+    biasReason,
+    g('sd-pdvah'), g('sd-pdval'), g('sd-pdpoc'),
+    g('sd-epdvah'), g('sd-epdval'), g('sd-epdpoc'),
+    g('sd-pwvah'), g('sd-pwval'), g('sd-pwpoc'),
+    g('sd-cwvah'), g('sd-cwval'), g('sd-cwpoc'),
+    g('sd-epwvah'), g('sd-epwval'), g('sd-epwpoc')
   ];
 
   const existing = await sheetsRequest('GET', `/values/${SHEET_PREMARKET}!A:A`);
@@ -1831,9 +2131,9 @@ async function syncPreMarketToSheets(pm) {
   const rowIdx = dates.indexOf(pm.date);
 
   if (rowIdx > 0) {
-    await sheetsRequest('PUT', `/values/${SHEET_PREMARKET}!A${rowIdx+1}:N${rowIdx+1}?valueInputOption=RAW`, { values: [row] });
+    await sheetsRequest('PUT', `/values/${SHEET_PREMARKET}!A${rowIdx+1}:AK${rowIdx+1}?valueInputOption=RAW`, { values: [row] });
   } else {
-    await sheetsRequest('POST', `/values/${SHEET_PREMARKET}!A:N:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, { values: [row] });
+    await sheetsRequest('POST', `/values/${SHEET_PREMARKET}!A:AK:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, { values: [row] });
   }
 }
 
@@ -1884,7 +2184,7 @@ let appState = {
     capital: 350000,
     buffer: 75000,
     peak: 350000,
-    lotSize: 25
+    lotSize: 65
   }
 };
 
@@ -2136,46 +2436,52 @@ function updateConfluenceDisplay() {
 function calcRisk() {
   const entry = parseFloat(document.getElementById('entryPrice').value);
   const stop = parseFloat(document.getElementById('stopPrice').value);
+  const t1 = parseFloat(document.getElementById('target1Price')?.value) || null;
+  const t2 = parseFloat(document.getElementById('target2Price')?.value) || null;
   const grade = appState.selectedGrade;
   const alert = document.getElementById('riskAlert');
+  const LOT_SIZE = 65;
 
   if (!entry || !stop || !grade) {
-    document.getElementById('riskAmt').textContent = '—';
-    document.getElementById('stopDist').textContent = '—';
-    document.getElementById('lotSug').textContent = '—';
-    document.getElementById('leg1Target').textContent = '—';
+    ['riskAmt','stopDist','lotSug','maxRisk','leg1Target','leg2Target'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.textContent = '—';
+    });
     return;
   }
 
   const cap = appState.settings.capital;
   const vixMult = appState.vix === 'elevated' ? 0.5 : 1;
   const riskMap = { 'A+': cap * 0.015, 'A': cap * 0.01, 'B': cap * 0.005 };
-  const risk = (riskMap[grade] || 0) * vixMult;
-  const stopDist = Math.abs(entry - stop);
-  const lotSize = appState.settings.lotSize;
+  const riskBudget = (riskMap[grade] || 0) * vixMult;
+
+  // Options: SL distance is entry - stop (for long buy)
+  const slDist = Math.abs(entry - stop);
+  const riskPerLot = slDist * LOT_SIZE;
+  const lots = riskPerLot > 0 ? Math.floor(riskBudget / riskPerLot) : 0;
+  const actualRisk = lots * riskPerLot;
+
+  // Max stop allowed by grade (in premium points)
   const maxStopMap = { 'A+': 50, 'A': 40, 'B': 25 };
   const maxStop = maxStopMap[grade];
 
-  // Lots: risk / (stopDist * lotSize)
-  const lots = Math.floor(risk / (stopDist * lotSize));
   const dir = appState.tradeDirection;
-  let leg1 = null;
-  if (dir === 'Long') leg1 = entry + (stopDist * 1.5);
-  else if (dir === 'Short') leg1 = entry - (stopDist * 1.5);
+  const t1Pnl = t1 && lots ? (Math.abs(t1 - entry) * LOT_SIZE * lots) : null;
+  const t2Pnl = t2 && lots ? (Math.abs(t2 - entry) * LOT_SIZE * lots) : null;
 
-  document.getElementById('riskAmt').textContent = '₹' + Math.round(risk).toLocaleString('en-IN');
-  document.getElementById('stopDist').textContent = stopDist.toFixed(1) + ' pts';
-  document.getElementById('lotSug').textContent = lots > 0 ? lots + (lots === 1 ? ' lot' : ' lots') : 'Check stop';
-  document.getElementById('leg1Target').textContent = leg1 ? leg1.toFixed(1) : '—';
+  document.getElementById('riskAmt').textContent = '₹' + Math.round(riskBudget).toLocaleString('en-IN');
+  document.getElementById('stopDist').textContent = slDist.toFixed(1) + ' pts';
+  document.getElementById('lotSug').textContent = lots > 0 ? lots + (lots === 1 ? ' lot' : ' lots') : 'Widen stop';
+  document.getElementById('maxRisk').textContent = actualRisk > 0 ? '₹' + Math.round(actualRisk).toLocaleString('en-IN') : '—';
+  document.getElementById('leg1Target').textContent = t1Pnl ? '+₹' + Math.round(t1Pnl).toLocaleString('en-IN') : '—';
+  document.getElementById('leg2Target').textContent = t2Pnl ? '+₹' + Math.round(t2Pnl).toLocaleString('en-IN') : '—';
 
-  // Alerts
   alert.className = 'alert';
-  if (stopDist > maxStop) {
+  if (slDist > maxStop) {
     alert.className = 'alert alert-yellow show';
-    alert.textContent = `⚠️ Stop distance ${stopDist}pts exceeds ${grade} maximum (${maxStop}pts). Downgrade trade or skip.`;
+    alert.textContent = `⚠️ SL distance ${slDist}pts exceeds ${grade} max (${maxStop}pts). Downgrade or skip.`;
   } else if (lots === 0) {
     alert.className = 'alert alert-yellow show';
-    alert.textContent = 'Stop too wide for risk budget. Reduce stop or downgrade.';
+    alert.textContent = 'SL too wide for risk budget. Reduce SL distance or downgrade.';
   }
 }
 
@@ -2194,36 +2500,72 @@ function saveTrade() {
   const entry = parseFloat(document.getElementById('te-entry').value);
   const exit = parseFloat(document.getElementById('te-exit').value);
   const stop = parseFloat(document.getElementById('te-stop').value);
+  const target1 = parseFloat(document.getElementById('te-target1').value) || null;
+  const target2 = parseFloat(document.getElementById('te-target2').value) || null;
   const lots = parseFloat(document.getElementById('te-lots').value) || 1;
-  const leg1 = parseFloat(document.getElementById('te-leg1').value) || 0;
-  const leg2 = parseFloat(document.getElementById('te-leg2').value) || 0;
   const notes = document.getElementById('te-notes').value;
+  const LOT_SIZE = 65;
 
   const dirEl = document.querySelector('#te-dir .pill.sel');
   const gradeEl = document.querySelector('#te-grade .pill.sel');
   const outcomeEl = document.querySelector('#te-outcome .pill.sel');
-  const setupEl = document.querySelector('#te-setup .pill.sel');
   const violationEl = document.querySelector('#te-violation .pill.sel');
 
+  // Multi-select setups
+  const setupEls = document.querySelectorAll('#te-setup .pill.sel');
+  const setup = Array.from(setupEls).map(p => p.textContent).join(' + ') || '—';
+
   if (!entry || !exit || !gradeEl || !outcomeEl) {
-    alert('Please fill entry, exit, grade, and outcome.');
+    showToast('Please fill entry, exit, grade and outcome.');
     return;
   }
 
-  const pnl = leg1 + leg2;
-  const outcome = outcomeEl.textContent.toLowerCase().replace('breakeven', 'be');
+  // P&L = (exit - entry) × lots × 65 for long buy
+  const dir = dirEl ? dirEl.textContent : 'Long (Buy)';
+  const isLong = dir.includes('Long');
+  const pnl = (isLong ? (exit - entry) : (entry - exit)) * lots * LOT_SIZE;
+  const rValue = stop ? (Math.abs(exit - entry) / Math.abs(entry - stop)).toFixed(2) : '—';
+
+  // Re-entry
+  const reentryAllowed = document.getElementById('te-reentry-allowed').checked;
+  let reentry = null;
+  if (reentryAllowed) {
+    const reEntryEl = document.getElementById('te-re-entry');
+    const reExitEl = document.getElementById('te-re-exit');
+    const reStopEl = document.getElementById('te-re-stop');
+    const reLotsEl = document.getElementById('te-re-lots');
+    const reOutcomeEl = document.querySelector('#te-re-outcome .pill.sel');
+    const reEntry = parseFloat(reEntryEl?.value) || null;
+    const reExit = parseFloat(reExitEl?.value) || null;
+    const reStop = parseFloat(reStopEl?.value) || null;
+    const reLots = parseFloat(reLotsEl?.value) || 1;
+    const reOutcome = reOutcomeEl ? reOutcomeEl.textContent : 'Not taken';
+    const rePnl = (reEntry && reExit) ? ((isLong ? (reExit - reEntry) : (reEntry - reExit)) * reLots * LOT_SIZE) : 0;
+
+    reentry = {
+      entry: reEntry, exit: reExit, stop: reStop,
+      target1: parseFloat(document.getElementById('te-re-target1')?.value) || null,
+      target2: parseFloat(document.getElementById('te-re-target2')?.value) || null,
+      lots: reLots, outcome: reOutcome, pnl: rePnl
+    };
+  }
+
+  const totalPnl = pnl + (reentry ? reentry.pnl : 0);
 
   const trade = {
     id: Date.now(),
     date: getTodayStr(),
     time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
-    entry, exit, stop, lots,
-    direction: dirEl ? dirEl.textContent : '—',
+    entry, exit, stop, target1, target2, lots,
+    direction: dir,
     grade: gradeEl.textContent,
     outcome: outcomeEl.textContent,
-    setup: setupEl ? setupEl.textContent : '—',
-    pnl, leg1, leg2,
-    rValue: stop && entry ? (Math.abs(exit - entry) / Math.abs(entry - stop)).toFixed(2) : '—',
+    setup,
+    pnl: totalPnl,
+    mainPnl: pnl,
+    rValue,
+    reentryAllowed,
+    reentry,
     notes,
     sessionState: appState.sessionState,
     vix: appState.vix,
@@ -2232,13 +2574,11 @@ function saveTrade() {
 
   appState.trades.unshift(trade);
   appState.tradeCount++;
-  appState.dayPnl += pnl;
+  appState.dayPnl += totalPnl;
 
-  // Update session state
-  updateSessionState(outcome === 'Win' ? 'win' : outcome === 'Loss' ? 'loss' : 'neutral');
+  updateSessionState(outcomeEl.textContent === 'Win' ? 'win' : outcomeEl.textContent === 'Loss' ? 'loss' : 'neutral');
 
-  // Update peak capital
-  const newCapital = appState.settings.capital + pnl;
+  const newCapital = appState.settings.capital + totalPnl;
   appState.settings.capital = newCapital;
   if (newCapital > appState.settings.peak) appState.settings.peak = newCapital;
   document.getElementById('cfg-capital').value = Math.round(newCapital);
@@ -2248,23 +2588,36 @@ function saveTrade() {
   updateDayStats();
   updateDrawdownMonitor();
 
-  // Sync to Google Sheets
   syncTradeToSheets(trade);
   syncSessionToSheets();
   syncSettingsToSheets();
 
   closeModal('modal-trade-entry');
   resetTradeEntryForm();
-
-  // Success feedback
-  showToast(pnl >= 0 ? `Trade saved — ₹${Math.abs(pnl).toLocaleString('en-IN')} profit` : `Trade saved — ₹${Math.abs(pnl).toLocaleString('en-IN')} loss`);
+  showToast(totalPnl >= 0 ? `Trade saved — +₹${Math.abs(totalPnl).toLocaleString('en-IN')}` : `Trade saved — −₹${Math.abs(totalPnl).toLocaleString('en-IN')}`);
 }
 
 function resetTradeEntryForm() {
-  ['te-entry','te-exit','te-stop','te-lots','te-leg1','te-leg2','te-notes'].forEach(id => {
-    document.getElementById(id).value = '';
+  ['te-entry','te-exit','te-stop','te-target1','te-target2','te-lots',
+   'te-re-entry','te-re-exit','te-re-stop','te-re-target1','te-re-target2','te-re-lots','te-notes'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
   });
   document.querySelectorAll('#modal-trade-entry .pill.sel').forEach(p => p.classList.remove('sel'));
+  const cb = document.getElementById('te-reentry-allowed');
+  if (cb) cb.checked = false;
+  const rs = document.getElementById('reentry-section');
+  if (rs) rs.style.display = 'none';
+  const preview = document.getElementById('te-pnl-preview');
+  if (preview) preview.style.display = 'none';
+}
+
+function toggleReentrySection() {
+  const show = document.getElementById('te-reentry-allowed').checked;
+  document.getElementById('reentry-section').style.display = show ? 'block' : 'none';
+}
+
+function toggleMultiPill(el) {
+  el.classList.toggle('sel');
 }
 
 function updateDayStats() {
@@ -2378,16 +2731,44 @@ function openTradeDetail(id) {
   const t = appState.trades.find(tr => tr.id === id);
   if (!t) return;
   const pnlColor = t.pnl > 0 ? 'var(--green)' : t.pnl < 0 ? 'var(--red)' : 'var(--text-dim)';
+  const gradeMap = { 'A+': 'grade-aplus', 'A': 'grade-a', 'B': 'grade-b' };
+
+  let reentryHTML = '';
+  if (t.reentryAllowed && t.reentry) {
+    const re = t.reentry;
+    const rColor = re.pnl > 0 ? 'var(--green)' : re.pnl < 0 ? 'var(--red)' : 'var(--text-dim)';
+    reentryHTML = `
+      <div class="card" style="margin-top:12px;border-color:var(--gold-dim);">
+        <div class="card-title">Re-entry</div>
+        <div class="risk-display">
+          <div class="risk-item"><div class="rlabel">Entry</div><div class="rval">₹${re.entry||'—'}</div></div>
+          <div class="risk-item"><div class="rlabel">Exit</div><div class="rval">₹${re.exit||'—'}</div></div>
+          <div class="risk-item"><div class="rlabel">Lots</div><div class="rval">${re.lots}</div></div>
+          <div class="risk-item"><div class="rlabel">Outcome</div><div class="rval">${re.outcome}</div></div>
+          <div class="risk-item"><div class="rlabel">P&L</div><div class="rval" style="color:${rColor};">${re.pnl >= 0 ? '+' : ''}₹${Math.abs(re.pnl||0).toLocaleString('en-IN')}</div></div>
+        </div>
+      </div>`;
+  }
+
   document.getElementById('tradeDetailContent').innerHTML = `
-    <h3 style="margin-bottom:16px;">${t.date} — ${t.setup}</h3>
+    <h3 style="margin-bottom:4px;">${t.date} ${t.time}</h3>
+    <div style="margin-bottom:16px;">
+      <span class="trade-tag ${gradeMap[t.grade]||''}" style="margin-right:6px;">${t.grade}</span>
+      <span style="font-size:12px;color:var(--text-dim);">${t.setup}</span>
+    </div>
     <div class="risk-display">
-      <div class="risk-item"><div class="rlabel">P&L</div><div class="rval" style="color:${pnlColor};">${t.pnl >= 0 ? '+' : ''}₹${Math.abs(t.pnl).toLocaleString('en-IN')}</div></div>
+      <div class="risk-item"><div class="rlabel">Total P&L</div><div class="rval" style="color:${pnlColor};">${t.pnl >= 0 ? '+' : ''}₹${Math.abs(t.pnl).toLocaleString('en-IN')}</div></div>
       <div class="risk-item"><div class="rlabel">Grade</div><div class="rval neutral-col">${t.grade}</div></div>
       <div class="risk-item"><div class="rlabel">R-Multiple</div><div class="rval">${t.rValue}R</div></div>
       <div class="risk-item"><div class="rlabel">Outcome</div><div class="rval">${t.outcome}</div></div>
-      <div class="risk-item"><div class="rlabel">Leg 1</div><div class="rval positive">+₹${(t.leg1||0).toLocaleString('en-IN')}</div></div>
-      <div class="risk-item"><div class="rlabel">Leg 2</div><div class="rval positive">${t.leg2 ? '+₹'+t.leg2.toLocaleString('en-IN') : '—'}</div></div>
+      <div class="risk-item"><div class="rlabel">Entry ₹</div><div class="rval">${t.entry}</div></div>
+      <div class="risk-item"><div class="rlabel">Exit ₹</div><div class="rval">${t.exit}</div></div>
+      <div class="risk-item"><div class="rlabel">SL ₹</div><div class="rval negative">${t.stop||'—'}</div></div>
+      <div class="risk-item"><div class="rlabel">T1 ₹</div><div class="rval positive">${t.target1||'—'}</div></div>
+      <div class="risk-item"><div class="rlabel">T2 ₹</div><div class="rval positive">${t.target2||'—'}</div></div>
+      <div class="risk-item"><div class="rlabel">Lots</div><div class="rval">${t.lots}</div></div>
     </div>
+    ${reentryHTML}
     ${t.notes ? `<div class="card" style="margin-top:12px;"><div class="card-title">Notes</div><div style="font-size:13px;line-height:1.6;">${t.notes}</div></div>` : ''}
   `;
   document.getElementById('deleteTradeBtn').onclick = () => deleteTrade(id);
@@ -2496,7 +2877,7 @@ function saveSettings() {
   appState.settings.capital = parseFloat(document.getElementById('cfg-capital').value) || 350000;
   appState.settings.buffer = parseFloat(document.getElementById('cfg-buffer').value) || 75000;
   appState.settings.peak = parseFloat(document.getElementById('cfg-peak').value) || 350000;
-  appState.settings.lotSize = parseFloat(document.getElementById('cfg-lotsize').value) || 25;
+  appState.settings.lotSize = parseFloat(document.getElementById('cfg-lotsize').value) || 65;
   updateRiskTable();
   saveData();
   syncSettingsToSheets();
@@ -2543,14 +2924,212 @@ function checkBinary() {
 }
 
 // ═══════════════════════════════════════════════════
+// SESSION BIAS CALCULATOR
+// ═══════════════════════════════════════════════════
+function calcSessionBias() {
+  const g = id => parseFloat(document.getElementById(id).value) || null;
+
+  const pdClose = g('sd-pdclose');
+  const preOpen = g('sd-preopen');
+  const pdPoc   = g('sd-pdpoc');
+  const epdPoc  = g('sd-epdpoc');
+  const pdVah   = g('sd-pdvah');
+  const pdVal   = g('sd-pdval');
+
+  const output = document.getElementById('sessionBiasOutput');
+
+  // Need at least close + preopen to show anything
+  if (!pdClose && !preOpen) { output.style.display = 'none'; return; }
+  output.style.display = 'block';
+
+  // ── GAP ──
+  if (pdClose && preOpen) {
+    const gap = preOpen - pdClose;
+    const gapPct = (gap / pdClose * 100).toFixed(2);
+    const gapEl = document.getElementById('gapValue');
+    const gapBadge = document.getElementById('gapBadge');
+    gapEl.textContent = (gap >= 0 ? '+' : '') + gap.toFixed(1) + ' pts (' + (gap >= 0 ? '+' : '') + gapPct + '%)';
+    gapEl.style.color = gap > 0 ? 'var(--green)' : gap < 0 ? 'var(--red)' : 'var(--text-dim)';
+
+    const absPct = Math.abs(parseFloat(gapPct));
+    if (absPct <= 0.1) {
+      gapBadge.textContent = 'FLAT OPEN';
+      gapBadge.style.cssText = 'background:rgba(59,130,246,0.15);color:var(--blue);border:1px solid rgba(59,130,246,0.3);padding:6px 14px;border-radius:20px;font-family:var(--mono);font-size:12px;font-weight:700;';
+    } else if (gap > 0) {
+      gapBadge.textContent = 'GAP UP';
+      gapBadge.style.cssText = 'background:rgba(34,197,94,0.15);color:var(--green);border:1px solid rgba(34,197,94,0.3);padding:6px 14px;border-radius:20px;font-family:var(--mono);font-size:12px;font-weight:700;';
+    } else {
+      gapBadge.textContent = 'GAP DOWN';
+      gapBadge.style.cssText = 'background:rgba(239,68,68,0.15);color:var(--red);border:1px solid rgba(239,68,68,0.3);padding:6px 14px;border-radius:20px;font-family:var(--mono);font-size:12px;font-weight:700;';
+    }
+  }
+
+  // ── BIAS ──
+  const biasLabel = document.getElementById('biasLabel');
+  const biasReason = document.getElementById('biasReason');
+
+  if (pdPoc && epdPoc && preOpen) {
+    const open = preOpen;
+    const pocDiff = Math.abs(pdPoc - epdPoc);
+    const pocClose = pocDiff < 10; // POCs within 10pts = agree / range
+
+    let bias = '', color = '', reason = '';
+
+    if (open > pdPoc && pdPoc >= epdPoc) {
+      bias = 'BULLISH'; color = 'var(--green)';
+      reason = `Open (${open}) is above PD POC (${pdPoc}), and PD POC is above EPD POC (${epdPoc}). Structure confirms upward migration. Favour long setups from value.`;
+    } else if (open < pdPoc && pdPoc <= epdPoc) {
+      bias = 'BEARISH'; color = 'var(--red)';
+      reason = `Open (${open}) is below PD POC (${pdPoc}), and PD POC is below EPD POC (${epdPoc}). Structure confirms downward migration. Favour short setups from value.`;
+    } else if (open > pdPoc && pdPoc < epdPoc) {
+      bias = 'BULLISH — CAUTION'; color = 'var(--yellow)';
+      reason = `Open (${open}) above PD POC (${pdPoc}), but EPD POC (${epdPoc}) is higher — POCs diverging. Bullish open but overhead EPD POC is resistance. Watch for rejection there.`;
+    } else if (open < pdPoc && pdPoc > epdPoc) {
+      bias = 'BEARISH — CAUTION'; color = 'var(--yellow)';
+      reason = `Open (${open}) below PD POC (${pdPoc}), but EPD POC (${epdPoc}) is lower — POCs diverging. Bearish open but EPD POC below may act as support. Watch for bounce.`;
+    } else if (pocClose) {
+      bias = 'RANGE BOUND'; color = 'var(--blue)';
+      reason = `PD POC (${pdPoc}) and EPD POC (${epdPoc}) are within ${pocDiff.toFixed(0)} pts — market in balance. Open (${open}) inside value area. Expect two-sided activity. Wait for clear breakout.`;
+    } else if (open >= Math.min(pdPoc, epdPoc) && open <= Math.max(pdPoc, epdPoc)) {
+      bias = 'RANGE BOUND'; color = 'var(--blue)';
+      reason = `Open (${open}) is caught between PD POC (${pdPoc}) and EPD POC (${epdPoc}). No clear directional edge until price breaks one of these levels.`;
+    } else {
+      bias = 'NEUTRAL — READ LIVE'; color = 'var(--text-dim)';
+      reason = `Open (${open}) relative to POCs is ambiguous. Let the first 15 minutes establish direction before committing to a bias.`;
+    }
+
+    // Factor in VAH/VAL if available
+    if (pdVah && pdVal) {
+      if (open > pdVah) reason += ` Open is above PD VAH (${pdVah}) — outside value, bullish extension.`;
+      else if (open < pdVal) reason += ` Open is below PD VAL (${pdVal}) — outside value, bearish extension.`;
+      else reason += ` Open is within PD value area (${pdVal}–${pdVah}).`;
+    }
+
+    biasLabel.textContent = bias;
+    biasLabel.style.color = color;
+    biasReason.textContent = reason;
+  } else if (pdPoc && preOpen) {
+    // Only PD POC available
+    const open = preOpen;
+    if (open > pdPoc) {
+      biasLabel.textContent = 'TENTATIVE BULLISH';
+      biasLabel.style.color = 'var(--green)';
+      biasReason.textContent = `Open (${open}) above PD POC (${pdPoc}). Enter EPD POC to confirm. Single POC read only.`;
+    } else {
+      biasLabel.textContent = 'TENTATIVE BEARISH';
+      biasLabel.style.color = 'var(--red)';
+      biasReason.textContent = `Open (${open}) below PD POC (${pdPoc}). Enter EPD POC to confirm. Single POC read only.`;
+    }
+  } else {
+    biasLabel.textContent = '—';
+    biasReason.textContent = 'Enter PD POC, EPD POC and Pre-Open to calculate bias.';
+  }
+
+  // ── WEEKLY BIAS ──
+  const pwPoc  = g('sd-pwpoc');
+  const cwPoc  = g('sd-cwpoc');
+  const epwPoc = g('sd-epwpoc');
+  const wBiasLabel = document.getElementById('weeklyBiasLabel');
+  const wBiasReason = document.getElementById('weeklyBiasReason');
+
+  if (wBiasLabel && preOpen && (pwPoc || cwPoc || epwPoc)) {
+    const open = preOpen;
+    let wBias = '', wColor = '', wReason = '';
+
+    if (pwPoc && epwPoc && cwPoc) {
+      // All three weekly POCs available — full read
+      if (open > cwPoc && cwPoc >= pwPoc && pwPoc >= epwPoc) {
+        wBias = 'WEEKLY BULLISH'; wColor = 'var(--green)';
+        wReason = `Open (${open}) above CW POC (${cwPoc}). CW POC > PW POC (${pwPoc}) > EPW POC (${epwPoc}). All weekly POCs stacked bullishly. Strong upward migration across timeframes.`;
+      } else if (open < cwPoc && cwPoc <= pwPoc && pwPoc <= epwPoc) {
+        wBias = 'WEEKLY BEARISH'; wColor = 'var(--red)';
+        wReason = `Open (${open}) below CW POC (${cwPoc}). CW POC < PW POC (${pwPoc}) < EPW POC (${epwPoc}). All weekly POCs stacked bearishly. Strong downward migration across timeframes.`;
+      } else if (Math.abs(cwPoc - pwPoc) < 30 && Math.abs(pwPoc - epwPoc) < 30) {
+        wBias = 'WEEKLY BALANCED'; wColor = 'var(--blue)';
+        wReason = `CW POC (${cwPoc}), PW POC (${pwPoc}), EPW POC (${epwPoc}) are tightly clustered. Market in weekly balance. Intraday setups will be more rotational — favour mean-reversion over trend.`;
+      } else if (open > cwPoc) {
+        wBias = 'WEEKLY TENTATIVE BULLISH'; wColor = 'var(--yellow)';
+        wReason = `Open (${open}) above CW POC (${cwPoc}), but weekly POCs are mixed (PW: ${pwPoc}, EPW: ${epwPoc}). Bullish tilt but not confirmed across all timeframes. Be selective.`;
+      } else if (open < cwPoc) {
+        wBias = 'WEEKLY TENTATIVE BEARISH'; wColor = 'var(--yellow)';
+        wReason = `Open (${open}) below CW POC (${cwPoc}), but weekly POCs are mixed (PW: ${pwPoc}, EPW: ${epwPoc}). Bearish tilt but not confirmed across all timeframes. Be selective.`;
+      } else {
+        wBias = 'WEEKLY NEUTRAL'; wColor = 'var(--text-dim)';
+        wReason = `Open at or near CW POC. Wait for weekly context to clarify.`;
+      }
+    } else if (cwPoc && pwPoc) {
+      // Two POCs
+      if (open > cwPoc && cwPoc >= pwPoc) { wBias = 'TENTATIVE WEEKLY BULLISH'; wColor = 'var(--green)'; wReason = `Open above CW POC (${cwPoc}), CW POC ≥ PW POC (${pwPoc}). Add EPW POC for full read.`; }
+      else if (open < cwPoc && cwPoc <= pwPoc) { wBias = 'TENTATIVE WEEKLY BEARISH'; wColor = 'var(--red)'; wReason = `Open below CW POC (${cwPoc}), CW POC ≤ PW POC (${pwPoc}). Add EPW POC for full read.`; }
+      else { wBias = 'WEEKLY MIXED'; wColor = 'var(--yellow)'; wReason = `CW POC (${cwPoc}) and PW POC (${pwPoc}) diverging. Enter EPW POC to resolve.`; }
+    } else {
+      wBias = '—'; wColor = 'var(--text-dim)';
+      wReason = 'Enter at least CW POC and PW POC for weekly bias.';
+    }
+
+    wBiasLabel.textContent = wBias;
+    wBiasLabel.style.color = wColor;
+    wBiasReason.textContent = wReason;
+  } else if (wBiasLabel) {
+    wBiasLabel.textContent = '—';
+    wBiasReason.textContent = 'Enter weekly POC values (PW, CW, EPW) for weekly bias.';
+  }
+
+  // ── LEVELS RANKED ──
+  const allLevels = [
+    { label: 'PDH', val: g('sd-pdh') },
+    { label: 'PDL', val: g('sd-pdl') },
+    { label: 'PD VAH', val: pdVah },
+    { label: 'PD VAL', val: pdVal },
+    { label: 'PD POC', val: pdPoc },
+    { label: 'EPD VAH', val: g('sd-epdvah') },
+    { label: 'EPD VAL', val: g('sd-epdval') },
+    { label: 'EPD POC', val: epdPoc },
+    { label: 'PW VAH', val: g('sd-pwvah') },
+    { label: 'PW VAL', val: g('sd-pwval') },
+    { label: 'PW POC', val: g('sd-pwpoc') },
+    { label: 'CW VAH', val: g('sd-cwvah') },
+    { label: 'CW VAL', val: g('sd-cwval') },
+    { label: 'CW POC', val: g('sd-cwpoc') },
+    { label: 'EPW VAH', val: g('sd-epwvah') },
+    { label: 'EPW VAL', val: g('sd-epwval') },
+    { label: 'EPW POC', val: g('sd-epwpoc') },
+  ].filter(l => l.val !== null);
+
+  if (allLevels.length > 0 && preOpen) {
+    const sorted = allLevels.sort((a, b) => Math.abs(a.val - preOpen) - Math.abs(b.val - preOpen));
+    const levelsEl = document.getElementById('levelsRanked');
+    levelsEl.innerHTML = sorted.map(l => {
+      const dist = (l.val - preOpen).toFixed(1);
+      const distColor = l.val > preOpen ? 'var(--green)' : 'var(--red)';
+      return `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border);">
+        <span style="color:var(--text-dim);">${l.label}</span>
+        <span>${l.val}</span>
+        <span style="color:${distColor};">${dist > 0 ? '+' : ''}${dist} pts</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ═══════════════════════════════════════════════════
 // SAVE PRE-MARKET
 // ═══════════════════════════════════════════════════
 function savePreMarket() {
+  const g = id => parseFloat(document.getElementById(id).value) || null;
   appState.premarket = {
     date: getTodayStr(),
     keyLevels: document.getElementById('keyLevels').value,
     scenarios: document.getElementById('scenarios').value,
-    sankalpa: document.getElementById('sankalpa').value
+    sankalpa: document.getElementById('sankalpa').value,
+    pdh: g('sd-pdh'), pdl: g('sd-pdl'),
+    pdClose: g('sd-pdclose'), preOpen: g('sd-preopen'),
+    pdVah: g('sd-pdvah'), pdVal: g('sd-pdval'), pdPoc: g('sd-pdpoc'),
+    epdVah: g('sd-epdvah'), epdVal: g('sd-epdval'), epdPoc: g('sd-epdpoc'),
+    pwVah: g('sd-pwvah'), pwVal: g('sd-pwval'), pwPoc: g('sd-pwpoc'),
+    cwVah: g('sd-cwvah'), cwVal: g('sd-cwval'), cwPoc: g('sd-cwpoc'),
+    epwVah: g('sd-epwvah'), epwVal: g('sd-epwval'), epwPoc: g('sd-epwpoc'),
+    gap: (g('sd-preopen') && g('sd-pdclose')) ? (g('sd-preopen') - g('sd-pdclose')).toFixed(1) : null,
+    bias: document.getElementById('biasLabel') ? document.getElementById('biasLabel').textContent : ''
   };
   saveData();
   syncPreMarketToSheets(appState.premarket);
