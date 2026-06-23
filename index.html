@@ -2577,8 +2577,10 @@ function saveTrade() {
     return;
   }
 
-  // P&L = (exit - entry) × lots × 65
-  const pnl = (exit - entry) * lots * LOT_SIZE;
+  // P&L = (exit - entry) × lots × 65 for long buy
+  const dir = dirEl ? dirEl.textContent : 'Long (Buy)';
+  const isLong = dir.includes('Long');
+  const pnl = (isLong ? (exit - entry) : (entry - exit)) * lots * LOT_SIZE;
   const rValue = stop ? (Math.abs(exit - entry) / Math.abs(entry - stop)).toFixed(2) : '—';
 
   // Re-entry
@@ -2595,7 +2597,7 @@ function saveTrade() {
     const reStop = parseFloat(reStopEl?.value) || null;
     const reLots = parseFloat(reLotsEl?.value) || 1;
     const reOutcome = reOutcomeEl ? reOutcomeEl.textContent : 'Not taken';
-    const rePnl = (reEntry && reExit) ? (reExit - reEntry) * reLots * LOT_SIZE) : 0;
+    const rePnl = (reEntry && reExit) ? ((isLong ? (reExit - reEntry) : (reEntry - reExit)) * reLots * LOT_SIZE) : 0;
 
     reentry = {
       entry: reEntry, exit: reExit, stop: reStop,
