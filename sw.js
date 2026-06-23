@@ -1,4 +1,4 @@
-const CACHE = 'vayu-v1';
+const CACHE = 'vayu-v4';
 const ASSETS = [
   './',
   './index.html',
