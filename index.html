@@ -415,6 +415,62 @@
   }
   .setup-field input:focus { border-color: var(--gold-dim); }
 
+  /* ── NEW v5 ── */
+  .session-window-bar { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  .sw-block { border-radius:8px; padding:8px 6px; text-align:center; border:1px solid var(--border2); background:var(--surface2); transition:all 0.3s; }
+  .sw-block.active-window { background:rgba(34,197,94,0.12); border-color:var(--green); }
+  .sw-block.dead-zone { background:rgba(239,68,68,0.06); border-color:rgba(239,68,68,0.2); }
+  .sw-time { font-family:var(--mono); font-size:10px; color:var(--text-dim); }
+  .sw-label { font-size:10px; font-weight:600; margin-top:2px; }
+  .sw-block.active-window .sw-label { color:var(--green); }
+  .sw-block.dead-zone .sw-label { color:rgba(239,68,68,0.5); }
+  .exit-clock { background:var(--surface2); border:1px solid var(--border2); border-radius:10px; padding:10px 14px; display:flex; justify-content:space-between; align-items:center; margin-top:8px; }
+  .exit-clock.urgent { border-color:var(--red); background:rgba(239,68,68,0.06); }
+  .exit-clock.warn { border-color:var(--yellow); background:rgba(234,179,8,0.06); }
+  .exit-clock-label { font-size:11px; color:var(--text-dim); }
+  .exit-clock-time { font-family:var(--mono); font-size:18px; font-weight:600; color:var(--gold); }
+  .circuit-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .circuit-box { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px 8px; text-align:center; }
+  .circuit-box.warn { border-color:var(--yellow); background:rgba(234,179,8,0.06); }
+  .circuit-box.breach { border-color:var(--red); background:rgba(239,68,68,0.08); }
+  .circuit-val { font-family:var(--mono); font-size:13px; font-weight:600; }
+  .circuit-lbl { font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.8px; margin-top:2px; }
+  .circuit-limit { font-family:var(--mono); font-size:9px; color:var(--text-muted); margin-top:1px; }
+  .day-type-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .day-type-btn { padding:10px 8px; border-radius:10px; border:1px solid var(--border2); background:var(--surface2); color:var(--text-dim); font-size:12px; cursor:pointer; text-align:center; transition:all 0.2s; }
+  .day-type-btn .dt-icon { font-size:18px; display:block; margin-bottom:4px; }
+  .day-type-btn .dt-label { font-weight:600; font-size:12px; }
+  .day-type-btn .dt-rule { font-size:10px; color:var(--text-muted); margin-top:2px; line-height:1.3; }
+  .day-type-btn.sel-trend { background:rgba(34,197,94,0.1); border-color:var(--green); color:var(--green); }
+  .day-type-btn.sel-moderate { background:rgba(201,168,76,0.1); border-color:var(--gold); color:var(--gold); }
+  .day-type-btn.sel-consolidation { background:rgba(59,130,246,0.1); border-color:var(--blue); color:var(--blue); }
+  .day-type-btn.sel-event { background:rgba(239,68,68,0.1); border-color:var(--red); color:var(--red); }
+  .vix-row-ext { display:grid; grid-template-columns:repeat(5,1fr); gap:5px; }
+  .vix-btn-sm { padding:8px 3px; border-radius:8px; border:1px solid var(--border2); background:var(--surface2); color:var(--text-dim); font-family:var(--mono); font-size:10px; cursor:pointer; text-align:center; transition:all 0.2s; }
+  .vix-btn-sm.sel-v1,.vix-btn-sm.sel-v2 { background:rgba(34,197,94,0.12); border-color:var(--green); color:var(--green); }
+  .vix-btn-sm.sel-v3 { background:rgba(234,179,8,0.12); border-color:var(--yellow); color:var(--yellow); }
+  .vix-btn-sm.sel-v4,.vix-btn-sm.sel-v5 { background:rgba(239,68,68,0.12); border-color:var(--red); color:var(--red); }
+  .lot-enforcer { background:var(--surface2); border:1px solid var(--border2); border-radius:10px; padding:12px; }
+  .lot-enforcer-row { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border); }
+  .lot-enforcer-row:last-child { border-bottom:none; }
+  .lot-grade { font-family:var(--mono); font-size:12px; font-weight:700; }
+  .lot-details { font-size:10px; color:var(--text-dim); margin-top:1px; }
+  .lot-numbers { font-family:var(--mono); font-size:11px; font-weight:600; text-align:right; }
+  .vix-banner { padding:8px 14px; border-radius:8px; font-size:11px; font-weight:600; display:flex; align-items:center; gap:8px; margin-bottom:10px; font-family:var(--mono); }
+  .vb-normal { background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.2); color:var(--green); }
+  .vb-elevated { background:rgba(234,179,8,0.08); border:1px solid rgba(234,179,8,0.2); color:var(--yellow); }
+  .vb-high { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.25); color:var(--red); }
+  .vb-crisis { background:rgba(239,68,68,0.18); border:1px solid var(--red); color:var(--red); }
+  .exp-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px; }
+  .exp-box { background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:10px 6px; text-align:center; }
+  .exp-val { font-family:var(--mono); font-size:15px; font-weight:600; }
+  .exp-lbl { font-size:9px; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.8px; margin-top:3px; }
+  .exp-target { font-size:9px; color:var(--text-muted); margin-top:2px; font-family:var(--mono); }
+  .review-metric { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid var(--border); }
+  .review-metric:last-child { border-bottom:none; }
+  .review-metric-label { font-size:12px; color:var(--text-dim); }
+  .review-metric-val { font-family:var(--mono); font-size:13px; font-weight:600; }
+
 </style>
 </head>
 <body>
@@ -476,7 +532,7 @@
 
 <!-- NAV -->
 <nav class="nav">
-  <div class="nav-logo">VAYU <span style="font-size:9px;opacity:0.4;letter-spacing:1px;">v4</span></div>
+  <div class="nav-logo">VAYU <span style="font-size:9px;opacity:0.4;letter-spacing:1px;">v5</span></div>
   <div style="display:flex;align-items:center;gap:10px;">
     <button class="sync-bar" id="syncBar" style="border-radius:20px;padding:4px 10px;border:none;cursor:pointer;background:var(--surface2);" onclick="handleGoogleSignIn()">
       <span class="sync-dot sync-off" id="syncDot"></span>
@@ -491,66 +547,114 @@
 <!-- ═══ PAGE: SESSION ═══ -->
 <div class="page active" id="page-session">
 
-  <!-- GOOGLE SIGN IN CARD — shown when not connected -->
   <div class="card" id="signInCard" style="background:rgba(201,168,76,0.06);border-color:var(--gold-dim);">
     <div style="display:flex;align-items:center;gap:12px;">
-      <div>
-        <div style="font-size:13px;font-weight:600;margin-bottom:4px;">Connect Google Sheets</div>
-        <div style="font-size:11px;color:var(--text-dim);">Sign in once to sync across all devices</div>
-      </div>
+      <div><div style="font-size:13px;font-weight:600;margin-bottom:4px;">Connect Google Sheets</div><div style="font-size:11px;color:var(--text-dim);">Sign in once to sync across all devices</div></div>
       <button class="btn btn-gold btn-sm" style="white-space:nowrap;flex-shrink:0;" onclick="handleGoogleSignIn()">Sign in</button>
     </div>
   </div>
 
-  <div class="card" style="padding:0; overflow:hidden;">
+  <!-- VIX BANNER -->
+  <div id="vixBanner" class="vix-banner vb-normal">
+    <span style="width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0;display:inline-block;"></span>
+    <span id="vixBannerText">VIX NORMAL — A+ 7 lots · A 6 lots · B 4 lots</span>
+  </div>
+
+  <!-- STATE ORB -->
+  <div class="card" style="padding:0;overflow:hidden;">
     <div class="state-display">
       <div class="state-orb state-neutral" id="stateOrb">NEUTRAL</div>
       <div class="state-label" id="stateLabel">Session Neutral</div>
       <div class="state-rule" id="stateRule">No trades taken yet. All grades available at full size.</div>
     </div>
   </div>
-
   <div id="sessionAlert" class="alert"></div>
 
-  <!-- VIX -->
+  <!-- SESSION WINDOWS -->
+  <div class="card">
+    <div class="card-title">Session Windows</div>
+    <div class="session-window-bar">
+      <div class="sw-block" id="sw-open"><div class="sw-time">9:20–10:00</div><div class="sw-label">OPENING</div></div>
+      <div class="sw-block" id="sw-mid"><div class="sw-time">10:30–11:30</div><div class="sw-label">MID-MORN</div></div>
+      <div class="sw-block" id="sw-aft"><div class="sw-time">1:30–2:30</div><div class="sw-label">AFTERNOON</div></div>
+    </div>
+    <div id="swStatusMsg" style="font-size:11px;color:var(--text-dim);text-align:center;margin-top:6px;min-height:16px;">—</div>
+    <div class="exit-clock" id="exitClock">
+      <div><div class="exit-clock-label">Compulsory exit at 3:00 PM</div><div style="font-size:10px;color:var(--text-muted);">All positions close</div></div>
+      <div class="exit-clock-time" id="exitCountdown">—</div>
+    </div>
+  </div>
+
+  <!-- DAY CLASSIFIER -->
+  <div class="card">
+    <div class="card-title">Day Classification <span style="color:var(--text-muted);font-size:9px;">— set by 9:45 AM</span></div>
+    <div class="day-type-row">
+      <div class="day-type-btn" id="dt-trend" onclick="setDayType('trend')">
+        <span class="dt-icon">📈</span><div class="dt-label">Trend Day</div><div class="dt-rule">All 3 setups · Full sizing</div>
+      </div>
+      <div class="day-type-btn" id="dt-moderate" onclick="setDayType('moderate')">
+        <span class="dt-icon">〰️</span><div class="dt-label">Moderate</div><div class="dt-rule">Max 2 · A/A+ only</div>
+      </div>
+      <div class="day-type-btn" id="dt-consolidation" onclick="setDayType('consolidation')">
+        <span class="dt-icon">⬜</span><div class="dt-label">Consolidation</div><div class="dt-rule">1 setup max · A+ only · 4 lots</div>
+      </div>
+      <div class="day-type-btn" id="dt-event" onclick="setDayType('event')">
+        <span class="dt-icon">⚡</span><div class="dt-label">Event Day</div><div class="dt-rule">No trade — stand aside</div>
+      </div>
+    </div>
+    <div id="dayTypeRule" style="font-size:11px;color:var(--text-dim);margin-top:8px;padding:8px;background:var(--surface2);border-radius:8px;display:none;line-height:1.6;"></div>
+  </div>
+
+  <!-- CIRCUIT BREAKERS -->
+  <div class="card">
+    <div class="card-title">Circuit Breakers</div>
+    <div class="circuit-row">
+      <div class="circuit-box" id="cb-daily"><div class="circuit-val" id="cb-daily-val">₹0</div><div class="circuit-lbl">Day Loss</div><div class="circuit-limit">Limit ₹25K</div></div>
+      <div class="circuit-box" id="cb-weekly"><div class="circuit-val" id="cb-weekly-val">₹0</div><div class="circuit-lbl">Week Loss</div><div class="circuit-limit">Limit ₹50K</div></div>
+      <div class="circuit-box" id="cb-monthly"><div class="circuit-val" id="cb-monthly-val">₹0</div><div class="circuit-lbl">Month Loss</div><div class="circuit-limit">Limit ₹1L</div></div>
+    </div>
+    <div id="circuitAlert" class="alert" style="margin-bottom:0;margin-top:8px;"></div>
+  </div>
+
+  <!-- LOT ENFORCER -->
+  <div class="card">
+    <div class="card-title">Today's Lot Allocation</div>
+    <div class="lot-enforcer">
+      <div class="lot-enforcer-row">
+        <div><span class="lot-grade" style="color:var(--green);">A+</span><div class="lot-details" id="le-aplus-detail">7 lots · 455 units</div></div>
+        <div class="lot-numbers" id="le-aplus-risk" style="color:var(--green);">Risk ₹10,010</div>
+      </div>
+      <div class="lot-enforcer-row">
+        <div><span class="lot-grade" style="color:var(--gold);">A&nbsp;</span><div class="lot-details" id="le-a-detail">6 lots · 390 units</div></div>
+        <div class="lot-numbers" id="le-a-risk" style="color:var(--gold);">Risk ₹8,580</div>
+      </div>
+      <div class="lot-enforcer-row">
+        <div><span class="lot-grade" style="color:var(--blue);">B&nbsp;</span><div class="lot-details" id="le-b-detail">4 lots · 260 units</div></div>
+        <div class="lot-numbers" id="le-b-risk" style="color:var(--blue);">Risk ₹5,720</div>
+      </div>
+    </div>
+    <div style="font-size:10px;color:var(--text-muted);margin-top:6px;line-height:1.5;">Stop = 22 pts · Min win = 44 pts · Leg 1 compulsory at +40 pts</div>
+  </div>
+
+  <!-- VIX REGIME EXTENDED -->
   <div class="card">
     <div class="card-title">VIX Regime</div>
-    <div class="vix-row">
-      <div class="vix-btn" id="vix-normal" onclick="setVix('normal')">
-        <div style="font-size:16px;margin-bottom:2px;">▼15</div>
-        <div style="font-size:10px;">Normal</div>
-        <div style="font-size:10px;margin-top:2px;">Full Size</div>
-      </div>
-      <div class="vix-btn" id="vix-elevated" onclick="setVix('elevated')">
-        <div style="font-size:16px;margin-bottom:2px;">15–20</div>
-        <div style="font-size:10px;">Elevated</div>
-        <div style="font-size:10px;margin-top:2px;">Half Size</div>
-      </div>
-      <div class="vix-btn" id="vix-high" onclick="setVix('high')">
-        <div style="font-size:16px;margin-bottom:2px;">▲20</div>
-        <div style="font-size:10px;">High</div>
-        <div style="font-size:10px;margin-top:2px;">Stand Aside</div>
-      </div>
+    <div class="vix-row-ext">
+      <div class="vix-btn-sm" id="vixe-v1" onclick="setVixExt('v1')"><div style="font-size:12px;">▼13</div><div style="font-size:9px;margin-top:1px;">Low</div><div style="font-size:9px;color:var(--text-muted);">Full</div></div>
+      <div class="vix-btn-sm" id="vixe-v2" onclick="setVixExt('v2')"><div style="font-size:12px;">13–17</div><div style="font-size:9px;margin-top:1px;">Normal</div><div style="font-size:9px;color:var(--text-muted);">Full</div></div>
+      <div class="vix-btn-sm" id="vixe-v3" onclick="setVixExt('v3')"><div style="font-size:12px;">17–20</div><div style="font-size:9px;margin-top:1px;">Elevated</div><div style="font-size:9px;color:var(--text-muted);">−2 lots</div></div>
+      <div class="vix-btn-sm" id="vixe-v4" onclick="setVixExt('v4')"><div style="font-size:12px;">20–25</div><div style="font-size:9px;margin-top:1px;">High</div><div style="font-size:9px;color:var(--text-muted);">A+ only</div></div>
+      <div class="vix-btn-sm" id="vixe-v5" onclick="setVixExt('v5')"><div style="font-size:12px;">▲25</div><div style="font-size:9px;margin-top:1px;">Crisis</div><div style="font-size:9px;color:var(--text-muted);">No trade</div></div>
     </div>
   </div>
 
   <!-- TODAY STATS -->
   <div class="stats-row">
-    <div class="stat-box">
-      <div class="stat-val" id="statPnl">₹0</div>
-      <div class="stat-lbl">Day P&L</div>
-    </div>
-    <div class="stat-box">
-      <div class="stat-val neutral-col" id="statTrades">0/3</div>
-      <div class="stat-lbl">Trades</div>
-    </div>
-    <div class="stat-box">
-      <div class="stat-val" id="statWR">—</div>
-      <div class="stat-lbl">Win Rate</div>
-    </div>
+    <div class="stat-box"><div class="stat-val" id="statPnl">₹0</div><div class="stat-lbl">Day P&L</div></div>
+    <div class="stat-box"><div class="stat-val neutral-col" id="statTrades">0/3</div><div class="stat-lbl">Trades</div></div>
+    <div class="stat-box"><div class="stat-val" id="statWR">—</div><div class="stat-lbl">Win Rate</div></div>
   </div>
 
-  <!-- QUICK ACTIONS -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
     <button class="btn btn-gold" onclick="openModal('modal-pretrade')">+ New Trade</button>
     <button class="btn btn-outline" onclick="openModal('modal-snap')">SNAP Protocol</button>
@@ -563,12 +667,8 @@
       <span style="font-size:12px;color:var(--text-dim);">From peak capital</span>
       <span class="stat-val" id="ddPct" style="font-size:16px;">0%</span>
     </div>
-    <div class="score-bar-bg">
-      <div class="score-bar-fill" id="ddBar" style="width:0%;background:linear-gradient(90deg,var(--green),var(--green));"></div>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text-muted);font-family:var(--mono);">
-      <span>0%</span><span style="color:var(--yellow);">8%</span><span style="color:var(--red);">15%</span>
-    </div>
+    <div class="score-bar-bg"><div class="score-bar-fill" id="ddBar" style="width:0%;background:linear-gradient(90deg,var(--green),var(--green));"></div></div>
+    <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;color:var(--text-muted);font-family:var(--mono);"><span>0%</span><span style="color:var(--yellow);">8%</span><span style="color:var(--red);">15%</span></div>
   </div>
 
   <!-- NEAR MISS LOG -->
@@ -1176,6 +1276,19 @@
     </div>
   </div>
 
+  <!-- EXPECTANCY TRACKER -->
+  <div class="card">
+    <div class="card-title">Expectancy & R:R Tracker</div>
+    <div id="expectancyTracker"><div style="color:var(--text-muted);font-size:13px;">Log trades to see expectancy.</div></div>
+  </div>
+
+  <!-- WEEKLY REVIEW -->
+  <div class="card" style="background:rgba(201,168,76,0.04);border-color:var(--gold-dim);">
+    <div class="card-title">Weekly Review</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:10px;line-height:1.5;">Auto-populates win rate, R:R, grade breakdown from your trade log.</div>
+    <button class="btn btn-gold mb8" onclick="openWeeklyReview()">Open Weekly Review →</button>
+  </div>
+
   <!-- BY GRADE -->
   <div class="card">
     <div class="card-title">Performance by Grade</div>
@@ -1632,6 +1745,50 @@
     <div id="tradeDetailContent"></div>
     <button class="btn btn-danger mt12" id="deleteTradeBtn">Delete Trade</button>
     <button class="btn btn-outline mt12" onclick="closeModal('modal-trade-detail')">Close</button>
+  </div>
+</div>
+
+<!-- WEEKLY REVIEW MODAL -->
+<div class="modal-overlay" id="modal-weekly-review">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3>Weekly Review</h3>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px;">Every Sunday. 30 minutes. Data first, then reflection.</div>
+    <div id="weeklyReviewData"></div>
+    <div class="field">
+      <label>B setups this week — net result?</label>
+      <div class="pill-row" id="wr-b-setups">
+        <div class="pill" onclick="togglePill(this,'wr-b-setups')">Net Positive</div>
+        <div class="pill" onclick="togglePill(this,'wr-b-setups')">Net Negative</div>
+        <div class="pill" onclick="togglePill(this,'wr-b-setups')">None taken</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Leg 2 — trailed or closed early?</label>
+      <div class="pill-row" id="wr-leg2">
+        <div class="pill" onclick="togglePill(this,'wr-leg2')">Trailed correctly</div>
+        <div class="pill" onclick="togglePill(this,'wr-leg2')">Closed early</div>
+        <div class="pill" onclick="togglePill(this,'wr-leg2')">Mixed</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Entry timing — after 5m candle close?</label>
+      <div class="pill-row" id="wr-timing">
+        <div class="pill" onclick="togglePill(this,'wr-timing')">Yes — correct</div>
+        <div class="pill" onclick="togglePill(this,'wr-timing')">No — premature</div>
+        <div class="pill" onclick="togglePill(this,'wr-timing')">Mixed</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>One decision that cost money this week</label>
+      <textarea id="wr-cost" placeholder="Specific. Honest."></textarea>
+    </div>
+    <div class="field">
+      <label>One thing to do differently next week</label>
+      <textarea id="wr-next" placeholder="One actionable change only."></textarea>
+    </div>
+    <button class="btn btn-gold mt12" onclick="closeModal('modal-weekly-review');showToast('Weekly review saved.')">Save & Close</button>
+    <button class="btn btn-outline mt12" onclick="closeModal('modal-weekly-review')">Close</button>
   </div>
 </div>
 
@@ -2349,6 +2506,15 @@ function init() {
   updateRiskTable();
   updateExpiryContext();
   initGoogleAuth();
+  // v5 new features
+  updateLotEnforcer();
+  updateCircuitBreakers();
+  updateSessionWindows();
+  refreshVixBanner();
+  if (appState.dayType) setDayType(appState.dayType, true);
+  if (appState.vixLevel) setVixExt(appState.vixLevel, true);
+  else setVixExt('v2', true);
+  setInterval(function() { updateSessionWindows(); }, 30000);
 }
 
 function loadData() {
@@ -2401,6 +2567,8 @@ function loadData() {
       if (todaySess) {
         appState.sessionState = todaySess.state || 'NEUTRAL';
         appState.vix = todaySess.vix || 'normal';
+        appState.vixLevel = todaySess.vixLevel || 'v2';
+        appState.dayType = todaySess.dayType || '';
         appState.tradeCount = todaySess.tradeCount || 0;
         appState.dayPnl = byDay ? (byDay[today] || 0) : (todaySess.dayPnl || 0);
         appState.consecutiveLosses = todaySess.consecutiveLosses || 0;
@@ -2427,12 +2595,13 @@ function saveData() {
       date: today,
       state: appState.sessionState,
       vix: appState.vix,
+      vixLevel: appState.vixLevel || 'v2',
+      dayType: appState.dayType || '',
       tradeCount: appState.tradeCount,
       dayPnl: appState.dayPnl,
       consecutiveLosses: appState.consecutiveLosses
     });
     appState.dailySessions = sessions;
-
     localStorage.setItem('vayu_data', JSON.stringify({
       trades: appState.trades,
       dailySessions: appState.dailySessions,
@@ -2838,6 +3007,7 @@ function updateDayStats() {
   }
 
   updateDrawdownMonitor();
+  updateCircuitBreakers();
 }
 
 function updateDrawdownMonitor() {
@@ -3055,20 +3225,29 @@ function renderAnalytics() {
   document.getElementById('redStateTrades').textContent = redViolations;
   document.getElementById('redStateTrades').style.color = redViolations === 0 ? 'var(--green)' : 'var(--red)';
 
-  // Monthly action
+  // Monthly action — target ₹8-10L
   const thisMonth = getTodayStr().substring(0, 7);
   const monthTrades = trades.filter(t => t.date.startsWith(thisMonth));
   const monthPnl = monthTrades.reduce((a,t) => a + t.pnl, 0);
-  let action = '';
-  if (monthPnl <= 0) action = 'Below breakeven — review trade log. Hold capital flat, no size change.';
-  else if (monthPnl <= 15000) action = `₹${monthPnl.toLocaleString('en-IN')} — Full amount compounds into active capital.`;
-  else if (monthPnl <= 30000) action = `₹${monthPnl.toLocaleString('en-IN')} — ₹15,000 compounds. ₹${(monthPnl-15000).toLocaleString('en-IN')} moves to personal account.`;
-  else action = `₹${monthPnl.toLocaleString('en-IN')} — ₹20,000 compounds. ₹${(monthPnl-20000).toLocaleString('en-IN')} transfers to personal account.`;
+  const dayOfMonth = new Date().getDate();
+  const projMonthly = dayOfMonth > 0 ? Math.round(monthPnl / dayOfMonth * 22) : 0;
+  const pct = Math.min(100, Math.round(monthPnl / 900000 * 100));
+  const action = monthPnl >= 900000 ? '🎯 Target achieved. Stay disciplined.' :
+    monthPnl >= 500000 ? '📈 On track. Keep grade discipline clean.' :
+    monthPnl >= 0 ? '⚠️ Below pace. Review R:R and grade quality.' :
+    '🔴 Negative. Reduce to A+ only, 5 lots until positive.';
 
   document.getElementById('monthlyAction').innerHTML = `
-    <div style="font-family:var(--mono);font-size:20px;color:${monthPnl>=0?'var(--green)':'var(--red)'};">${monthPnl>=0?'+':''}₹${Math.abs(monthPnl).toLocaleString('en-IN')}</div>
-    <div style="font-size:12px;color:var(--text-dim);margin-top:8px;line-height:1.6;">${action}</div>
+    <div style="font-family:var(--mono);font-size:22px;color:${monthPnl>=0?'var(--green)':'var(--red)'};">${monthPnl>=0?'+':''}₹${Math.abs(monthPnl).toLocaleString('en-IN')}</div>
+    <div style="margin:8px 0;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-dim);margin-bottom:4px;"><span>Progress to ₹9L target</span><span>${pct}%</span></div>
+      <div class="score-bar-bg"><div class="score-bar-fill" style="width:${pct}%"></div></div>
+    </div>
+    <div style="font-size:11px;color:var(--text-dim);line-height:1.6;">Projected: <span style="color:${projMonthly>=800000?'var(--green)':projMonthly>=500000?'var(--yellow)':'var(--red)'};">₹${Math.round(projMonthly/1000)}K</span> &nbsp;·&nbsp; ${action}</div>
   `;
+
+  // Expectancy tracker
+  renderExpectancyTracker();
 }
 
 // ═══════════════════════════════════════════════════
@@ -3085,13 +3264,12 @@ function saveSettings() {
 }
 
 function updateRiskTable() {
-  const c = appState.settings.capital;
-  document.getElementById('riskAplus').textContent = '₹' + Math.round(c * 0.015).toLocaleString('en-IN');
-  document.getElementById('riskA').textContent = '₹' + Math.round(c * 0.01).toLocaleString('en-IN');
-  document.getElementById('riskB').textContent = '₹' + Math.round(c * 0.005).toLocaleString('en-IN');
-  document.getElementById('limitSoft').textContent = '₹5,000';
-  document.getElementById('limitHard').textContent = '₹7,000';
-  document.getElementById('limitWeekly').textContent = '₹14,000';
+  document.getElementById('riskAplus').textContent = '₹10,010 (7 lots × 22pts × 65u)';
+  document.getElementById('riskA').textContent = '₹8,580 (6 lots × 22pts × 65u)';
+  document.getElementById('riskB').textContent = '₹5,720 (4 lots × 22pts × 65u)';
+  document.getElementById('limitSoft').textContent = '₹10,000 (1 full loss)';
+  document.getElementById('limitHard').textContent = '₹25,000 (2 full losses)';
+  document.getElementById('limitWeekly').textContent = '₹50,000 (10% working capital)';
 }
 
 function confirmReset() {
@@ -3455,6 +3633,268 @@ function showToast(msg) {
   toast.style.opacity = '1';
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { toast.style.opacity = '0'; }, 2800);
+}
+
+// ═══════════════════════════════════════════════════
+// v5: EXTENDED VIX SYSTEM
+// ═══════════════════════════════════════════════════
+const VIX_CONFIG = {
+  v1: { label:'<13 Low',    bannerCls:'vb-normal',   lots:{aplus:7,a:6,b:4}, vix:'normal'  },
+  v2: { label:'13-17 Normal', bannerCls:'vb-normal', lots:{aplus:7,a:6,b:4}, vix:'normal'  },
+  v3: { label:'17-20 Elevated', bannerCls:'vb-elevated', lots:{aplus:5,a:4,b:2}, vix:'elevated' },
+  v4: { label:'20-25 High', bannerCls:'vb-high',     lots:{aplus:4,a:0,b:0}, vix:'high'    },
+  v5: { label:'>25 Crisis', bannerCls:'vb-crisis',   lots:{aplus:0,a:0,b:0}, vix:'high'    }
+};
+
+function setVixExt(level, silent) {
+  appState.vixLevel = level;
+  const cfg = VIX_CONFIG[level] || VIX_CONFIG.v2;
+  appState.vix = cfg.vix;
+  document.querySelectorAll('.vix-btn-sm').forEach(b => b.className = 'vix-btn-sm');
+  const el = document.getElementById('vixe-' + level);
+  if (el) el.classList.add('sel-' + level);
+  refreshVixBanner();
+  updateLotEnforcer();
+  if (!silent) { updateSessionDisplay(); saveData(); }
+}
+
+function refreshVixBanner() {
+  const level = appState.vixLevel || 'v2';
+  const cfg = VIX_CONFIG[level] || VIX_CONFIG.v2;
+  const banner = document.getElementById('vixBanner');
+  const text = document.getElementById('vixBannerText');
+  if (!banner || !text) return;
+  banner.className = 'vix-banner ' + cfg.bannerCls;
+  const l = cfg.lots;
+  const lotStr = l.aplus > 0
+    ? `A+ ${l.aplus} lots · A ${l.a > 0 ? l.a + ' lots' : 'N/A'} · B ${l.b > 0 ? l.b + ' lots' : 'N/A'}`
+    : 'NO TRADE — stand aside';
+  text.textContent = `VIX ${cfg.label.toUpperCase()} — ${lotStr}`;
+}
+
+// ═══════════════════════════════════════════════════
+// v5: LOT ENFORCER
+// ═══════════════════════════════════════════════════
+function updateLotEnforcer() {
+  const level = appState.vixLevel || 'v2';
+  const dayType = appState.dayType || 'trend';
+  let cfg = Object.assign({}, (VIX_CONFIG[level] || VIX_CONFIG.v2).lots);
+
+  if (dayType === 'consolidation') { cfg.aplus = Math.min(cfg.aplus, 4); cfg.a = 0; cfg.b = 0; }
+  else if (dayType === 'event') { cfg.aplus = 0; cfg.a = 0; cfg.b = 0; }
+  else if (dayType === 'moderate') { cfg.b = 0; }
+
+  appState.lotsConfig = cfg;
+  const SL = 22, U = 65;
+  const fmtLot = n => n > 0 ? `${n} lots · ${n * U} units` : 'Not available';
+  const fmtRisk = n => n > 0 ? `Risk ₹${(n * U * SL).toLocaleString('en-IN')}` : 'Not allowed';
+
+  document.getElementById('le-aplus-detail').textContent = fmtLot(cfg.aplus);
+  document.getElementById('le-a-detail').textContent = fmtLot(cfg.a);
+  document.getElementById('le-b-detail').textContent = fmtLot(cfg.b);
+  document.getElementById('le-aplus-risk').textContent = fmtRisk(cfg.aplus);
+  document.getElementById('le-a-risk').textContent = fmtRisk(cfg.a);
+  document.getElementById('le-b-risk').textContent = fmtRisk(cfg.b);
+}
+
+// ═══════════════════════════════════════════════════
+// v5: DAY CLASSIFIER
+// ═══════════════════════════════════════════════════
+const DAY_RULES = {
+  trend:        'All 3 setups permitted · Full grade sizing · Let Leg 2 run · Target contribution: ₹60–80K',
+  moderate:     'Max 2 setups · A and A+ only · No B setups · Book Leg 2 earlier at 60–70 pts',
+  consolidation:'Max 1 setup · A+ only · Max 4 lots · No A+ by 11:00 AM → no trade · Target: flat',
+  event:        'No trade. Stand aside. Capital preserved = capital earned.'
+};
+
+function setDayType(type, silent) {
+  appState.dayType = type;
+  document.querySelectorAll('.day-type-btn').forEach(b => b.className = 'day-type-btn');
+  const el = document.getElementById('dt-' + type);
+  if (el) el.classList.add('sel-' + type);
+  const ruleEl = document.getElementById('dayTypeRule');
+  if (ruleEl) { ruleEl.textContent = DAY_RULES[type] || ''; ruleEl.style.display = 'block'; }
+  updateLotEnforcer();
+  if (type === 'event') {
+    const alert = document.getElementById('sessionAlert');
+    if (alert) { alert.className = 'alert alert-red show'; alert.textContent = '⚡ Event day — No trades. Stand aside.'; }
+  }
+  if (!silent) saveData();
+}
+
+// ═══════════════════════════════════════════════════
+// v5: SESSION WINDOWS + EXIT COUNTDOWN
+// ═══════════════════════════════════════════════════
+function updateSessionWindows() {
+  const now = new Date();
+  const totalMin = now.getHours() * 60 + now.getMinutes();
+  const windows = [
+    { id:'sw-open', start:9*60+20, end:10*60+0   },
+    { id:'sw-mid',  start:10*60+30, end:11*60+30 },
+    { id:'sw-aft',  start:13*60+30, end:14*60+30 }
+  ];
+  const deadStart1 = 11*60+30, deadEnd1 = 13*60+30;
+  const deadStart2 = 14*60+30, deadEnd2 = 15*60+0;
+
+  let activeWindow = null;
+  windows.forEach(w => {
+    const el = document.getElementById(w.id);
+    if (!el) return;
+    el.className = 'sw-block';
+    if (totalMin >= w.start && totalMin < w.end) { el.classList.add('active-window'); activeWindow = w; }
+  });
+
+  const inDead = (totalMin >= deadStart1 && totalMin < deadEnd1) || (totalMin >= deadStart2 && totalMin < deadEnd2);
+  if (inDead && !activeWindow) {
+    windows.forEach(w => { const el = document.getElementById(w.id); if (el && !el.classList.contains('active-window')) el.classList.add('dead-zone'); });
+  }
+
+  const msgEl = document.getElementById('swStatusMsg');
+  if (msgEl) {
+    if (activeWindow) {
+      const left = activeWindow.end - totalMin;
+      msgEl.textContent = `✓ Window active — ${left} min remaining`;
+      msgEl.style.color = 'var(--green)';
+    } else if (inDead) {
+      msgEl.textContent = '⛔ Dead zone — no new entries. Manage positions only.';
+      msgEl.style.color = 'var(--red)';
+    } else if (totalMin < 9*60+20) {
+      msgEl.textContent = 'Pre-market — first window opens 9:20 AM';
+      msgEl.style.color = 'var(--text-dim)';
+    } else if (totalMin >= 14*60+30) {
+      msgEl.textContent = '🛑 After 2:30 PM — no new entries. Close all by 3:00 PM.';
+      msgEl.style.color = 'var(--red)';
+    } else {
+      msgEl.textContent = 'Between windows — next window coming';
+      msgEl.style.color = 'var(--text-dim)';
+    }
+  }
+
+  // Exit countdown
+  const exitMin = 15 * 60;
+  const minsLeft = exitMin - totalMin;
+  const clockEl = document.getElementById('exitClock');
+  const countEl = document.getElementById('exitCountdown');
+  if (countEl && totalMin >= 9*60) {
+    if (minsLeft > 0) {
+      const h = Math.floor(minsLeft / 60), m = minsLeft % 60;
+      countEl.textContent = h > 0 ? `${h}h ${m}m` : `${m}m`;
+      countEl.style.color = minsLeft <= 15 ? 'var(--red)' : minsLeft <= 45 ? 'var(--yellow)' : 'var(--gold)';
+      if (clockEl) { clockEl.className = 'exit-clock' + (minsLeft <= 15 ? ' urgent' : minsLeft <= 45 ? ' warn' : ''); }
+    } else {
+      countEl.textContent = 'CLOSE NOW';
+      countEl.style.color = 'var(--red)';
+      if (clockEl) clockEl.className = 'exit-clock urgent';
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// v5: CIRCUIT BREAKERS
+// ═══════════════════════════════════════════════════
+function getWeekStart() {
+  const d = new Date(), day = d.getDay();
+  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+  return new Date(new Date().setDate(diff)).toISOString().split('T')[0];
+}
+
+function updateCircuitBreakers() {
+  const today = getTodayStr(), week = getWeekStart(), month = today.substring(0,7);
+  const sumLoss = (filter) => Math.min(0, appState.trades.filter(filter).reduce((a,t) => a + t.pnl, 0));
+  const dayLoss   = sumLoss(t => t.date === today);
+  const weekLoss  = sumLoss(t => t.date >= week);
+  const monthLoss = sumLoss(t => t.date.startsWith(month));
+  const LIMITS = { day: 25000, week: 50000, month: 100000 };
+
+  const fmt = v => v < 0 ? `−₹${Math.abs(v).toLocaleString('en-IN')}` : '₹0';
+  const setBox = (id, valId, loss, limit) => {
+    const box = document.getElementById(id), val = document.getElementById(valId);
+    if (!box || !val) return;
+    val.textContent = fmt(loss);
+    const pct = Math.abs(loss) / limit;
+    box.className = 'circuit-box' + (pct >= 1 ? ' breach' : pct >= 0.7 ? ' warn' : '');
+    val.style.color = pct >= 1 ? 'var(--red)' : pct >= 0.7 ? 'var(--yellow)' : Math.abs(loss) > 0 ? 'var(--red)' : 'var(--text)';
+  };
+  setBox('cb-daily','cb-daily-val', dayLoss, LIMITS.day);
+  setBox('cb-weekly','cb-weekly-val', weekLoss, LIMITS.week);
+  setBox('cb-monthly','cb-monthly-val', monthLoss, LIMITS.month);
+
+  const alert = document.getElementById('circuitAlert');
+  if (!alert) return;
+  alert.className = 'alert';
+  if (Math.abs(dayLoss) >= LIMITS.day) {
+    alert.className = 'alert alert-red show';
+    alert.textContent = '🛑 DAILY STOP HIT — ₹25,000 loss. Screens off. Come back tomorrow.';
+  } else if (Math.abs(weekLoss) >= LIMITS.week) {
+    alert.className = 'alert alert-red show';
+    alert.textContent = '🛑 WEEKLY STOP HIT — No trading until Monday.';
+  } else if (Math.abs(monthLoss) >= LIMITS.month) {
+    alert.className = 'alert alert-red show';
+    alert.textContent = '🛑 MONTHLY FLOOR HIT — Mandatory 2-day break then reassess.';
+  } else if (Math.abs(dayLoss) >= LIMITS.day * 0.7) {
+    alert.className = 'alert alert-yellow show';
+    alert.textContent = `⚠️ Day loss ₹${Math.abs(dayLoss).toLocaleString('en-IN')} — one more loss = screens off.`;
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// v5: EXPECTANCY TRACKER
+// ═══════════════════════════════════════════════════
+function renderExpectancyTracker() {
+  const el = document.getElementById('expectancyTracker');
+  if (!el) return;
+  const month = getTodayStr().substring(0,7);
+  const mt = appState.trades.filter(t => t.date.startsWith(month));
+  if (!mt.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">No trades this month yet.</div>'; return; }
+  const wins = mt.filter(t => t.outcome === 'Win');
+  const losses = mt.filter(t => t.outcome === 'Loss');
+  const wr = wins.length / mt.length;
+  const avgW = wins.length ? wins.reduce((a,t) => a+t.pnl,0)/wins.length : 0;
+  const avgL = losses.length ? Math.abs(losses.reduce((a,t) => a+t.pnl,0)/losses.length) : 0;
+  const exp = (wr * avgW) - ((1-wr) * avgL);
+  const rr = avgL > 0 ? avgW/avgL : 0;
+  const monthPnl = mt.reduce((a,t) => a+t.pnl,0);
+  el.innerHTML = `
+    <div class="exp-grid">
+      <div class="exp-box"><div class="exp-val" style="color:${exp>=10000?'var(--green)':exp>=0?'var(--yellow)':'var(--red)'};">₹${Math.round(Math.abs(exp)/1000)}K</div><div class="exp-lbl">Expectancy</div><div class="exp-target">Target ₹15K+</div></div>
+      <div class="exp-box"><div class="exp-val" style="color:${rr>=2?'var(--green)':rr>=1?'var(--yellow)':'var(--red)'}">${rr.toFixed(1)}:1</div><div class="exp-lbl">Actual R:R</div><div class="exp-target">Target 2:1+</div></div>
+      <div class="exp-box"><div class="exp-val" style="color:${(wr*100)>=55?'var(--green)':'var(--red)'}">${(wr*100).toFixed(0)}%</div><div class="exp-lbl">Win Rate</div><div class="exp-target">Target 55%+</div></div>
+    </div>
+    <div style="background:var(--surface2);border-radius:8px;padding:10px;font-size:11px;color:var(--text-dim);line-height:1.6;">
+      Avg win <span style="color:var(--green);">₹${Math.round(avgW).toLocaleString('en-IN')}</span> · Avg loss <span style="color:var(--red);">₹${Math.round(avgL).toLocaleString('en-IN')}</span> · Month P&L <span style="color:${monthPnl>=0?'var(--green)':'var(--red)'};">${monthPnl>=0?'+':''}₹${Math.abs(monthPnl).toLocaleString('en-IN')}</span>
+    </div>`;
+}
+
+// ═══════════════════════════════════════════════════
+// v5: WEEKLY REVIEW
+// ═══════════════════════════════════════════════════
+function openWeeklyReview() {
+  const week = getWeekStart(), today = getTodayStr();
+  const wt = appState.trades.filter(t => t.date >= week && t.date <= today);
+  const el = document.getElementById('weeklyReviewData');
+  if (!el) { openModal('modal-weekly-review'); return; }
+  if (!wt.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;margin-bottom:12px;">No trades this week.</div>'; openModal('modal-weekly-review'); return; }
+  const wins = wt.filter(t => t.outcome==='Win'), losses = wt.filter(t => t.outcome==='Loss');
+  const wr = (wins.length/wt.length*100).toFixed(0);
+  const avgW = wins.length ? wins.reduce((a,t)=>a+t.pnl,0)/wins.length : 0;
+  const avgL = losses.length ? Math.abs(losses.reduce((a,t)=>a+t.pnl,0)/losses.length) : 0;
+  const rr = avgL > 0 ? (avgW/avgL).toFixed(2) : '—';
+  const weekPnl = wt.reduce((a,t)=>a+t.pnl,0);
+  const gradeRows = ['A+','A','B'].map(g => {
+    const gt = wt.filter(t=>t.grade===g); if(!gt.length) return '';
+    const gw = gt.filter(t=>t.outcome==='Win').length;
+    const gpnl = gt.reduce((a,t)=>a+t.pnl,0);
+    return `<div class="review-metric"><span class="review-metric-label">${g} (${gt.length} trades · ${Math.round(gw/gt.length*100)}% WR)</span><span class="review-metric-val" style="color:${gpnl>=0?'var(--green)':'var(--red)'};">${gpnl>=0?'+':''}₹${Math.abs(gpnl).toLocaleString('en-IN')}</span></div>`;
+  }).join('');
+  el.innerHTML = `<div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:14px;">
+    <div class="review-metric"><span class="review-metric-label">Trades (${wins.length}W / ${losses.length}L)</span><span class="review-metric-val">${wt.length}</span></div>
+    <div class="review-metric"><span class="review-metric-label">Win rate</span><span class="review-metric-val" style="color:${wr>=55?'var(--green)':'var(--red)'}">${wr}%</span></div>
+    <div class="review-metric"><span class="review-metric-label">Avg Win / Avg Loss</span><span class="review-metric-val">₹${Math.round(avgW).toLocaleString('en-IN')} / ₹${Math.round(avgL).toLocaleString('en-IN')}</span></div>
+    <div class="review-metric"><span class="review-metric-label">Actual R:R</span><span class="review-metric-val" style="color:${parseFloat(rr)>=2?'var(--green)':'var(--red)'}">${rr}${parseFloat(rr)<2?' ⚠':''}</span></div>
+    <div class="review-metric"><span class="review-metric-label">Week P&L</span><span class="review-metric-val" style="color:${weekPnl>=0?'var(--green)':'var(--red)'};">${weekPnl>=0?'+':''}₹${Math.abs(weekPnl).toLocaleString('en-IN')}</span></div>
+    ${gradeRows}
+  </div>`;
+  openModal('modal-weekly-review');
 }
 
 // ═══════════════════════════════════════════════════
