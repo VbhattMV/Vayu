@@ -1,4 +1,4 @@
-const CACHE = 'vayu-v4';
+const CACHE = 'vayu-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -25,9 +25,8 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   e.respondWith(
     caches.match(e.request).then(cached => {
-      if (cached) return cached;
       return fetch(e.request).then(res => {
-        if (!res || res.status !== 200 || res.type === 'opaque') return res;
+        if (!res || res.status !== 200 || res.type === 'opaque') return res || cached;
         const clone = res.clone();
         caches.open(CACHE).then(c => c.put(e.request, clone));
         return res;
