@@ -2768,13 +2768,14 @@ function updateConfluenceDisplay() {
 
   const tradeGradeDisplay = document.getElementById('tradeGradeDisplay');
   if (appState.selectedGrade) {
-    const cap = appState.settings.capital;
-    const vixMult = appState.vix === 'elevated' ? 0.5 : 1;
-    const riskMap = { 'A+': cap * 0.015, 'A': cap * 0.01, 'B': cap * 0.005 };
-    const risk = (riskMap[appState.selectedGrade] || 0) * vixMult;
-    const vixNote = appState.vix === 'elevated' ? ' (halved — VIX elevated)' : '';
-    tradeGradeDisplay.textContent = grade + ' — Risk ₹' + Math.round(risk).toLocaleString('en-IN') + vixNote;
-    tradeGradeDisplay.style.color = 'var(--gold)';
+    if (!appState.lotsConfig) updateLotEnforcer();
+    const cfg = appState.lotsConfig || { aplus: 7, a: 6, b: 4 };
+    const gradeKey = appState.selectedGrade === 'A+' ? 'aplus' : appState.selectedGrade === 'A' ? 'a' : 'b';
+    const lots = cfg[gradeKey] || 0;
+    const fixedRisk = { 'A+': 7*65*22, 'A': 6*65*22, 'B': 4*65*22 };
+    const riskNote = lots === 0 ? ' — NOT PERMITTED today' : ` · ${lots} lots · Risk ₹${(fixedRisk[appState.selectedGrade]||0).toLocaleString('en-IN')}`;
+    tradeGradeDisplay.textContent = grade + riskNote;
+    tradeGradeDisplay.style.color = lots === 0 ? 'var(--red)' : 'var(--gold)';
   } else {
     tradeGradeDisplay.textContent = 'Score below 12 — no trade signal';
     tradeGradeDisplay.style.color = 'var(--red)';
@@ -2788,53 +2789,74 @@ function updateConfluenceDisplay() {
 // ═══════════════════════════════════════════════════
 function calcRisk() {
   const entry = parseFloat(document.getElementById('entryPrice').value);
-  const stop = parseFloat(document.getElementById('stopPrice').value);
-  const t1 = parseFloat(document.getElementById('target1Price')?.value) || null;
-  const t2 = parseFloat(document.getElementById('target2Price')?.value) || null;
+  const stop  = parseFloat(document.getElementById('stopPrice').value);
+  const t1    = parseFloat(document.getElementById('target1Price')?.value) || null;
+  const t2    = parseFloat(document.getElementById('target2Price')?.value) || null;
   const grade = appState.selectedGrade;
   const alert = document.getElementById('riskAlert');
-  const LOT_SIZE = 65;
+  const U = 65; // units per lot
+  const FIXED_SL = 22; // canonical stop in premium points
 
   if (!entry || !stop || !grade) {
     ['riskAmt','stopDist','lotSug','maxRisk','leg1Target','leg2Target'].forEach(id => {
       const el = document.getElementById(id); if (el) el.textContent = '—';
     });
+    if (alert) alert.className = 'alert';
     return;
   }
 
-  const cap = appState.settings.capital;
-  const vixMult = appState.vix === 'elevated' ? 0.5 : 1;
-  const riskMap = { 'A+': cap * 0.015, 'A': cap * 0.01, 'B': cap * 0.005 };
-  const riskBudget = (riskMap[grade] || 0) * vixMult;
+  // ── Lots come from lotsConfig (set by VIX + day type) ──
+  // Ensure lotsConfig is populated even if updateLotEnforcer hasn't run yet
+  if (!appState.lotsConfig) updateLotEnforcer();
+  const cfg = appState.lotsConfig || { aplus: 7, a: 6, b: 4 };
+  const gradeKey = grade === 'A+' ? 'aplus' : grade === 'A' ? 'a' : 'b';
+  const lots = cfg[gradeKey] || 0;
 
-  // Options: SL distance is entry - stop (for long buy)
-  const slDist = Math.abs(entry - stop);
-  const riskPerLot = slDist * LOT_SIZE;
-  const lots = riskPerLot > 0 ? Math.floor(riskBudget / riskPerLot) : 0;
-  const actualRisk = lots * riskPerLot;
+  // ── Fixed risk per grade at canonical 22pt SL ──
+  const fixedRisk = { 'A+': 7 * U * FIXED_SL, 'A': 6 * U * FIXED_SL, 'B': 4 * U * FIXED_SL };
+  // Actual risk uses the real SL the trader entered
+  const slDist    = Math.abs(entry - stop);
+  const actualRisk = lots * slDist * U;
 
-  // Max stop allowed by grade (in premium points)
-  const maxStopMap = { 'A+': 50, 'A': 40, 'B': 25 };
-  const maxStop = maxStopMap[grade];
+  // ── Target P&L ──
+  const t1Pnl = (t1 && lots) ? Math.abs(t1 - entry) * U * lots : null;
+  const t2Pnl = (t2 && lots) ? Math.abs(t2 - entry) * U * lots : null;
 
-  const dir = appState.tradeDirection;
-  const t1Pnl = t1 && lots ? (Math.abs(t1 - entry) * LOT_SIZE * lots) : null;
-  const t2Pnl = t2 && lots ? (Math.abs(t2 - entry) * LOT_SIZE * lots) : null;
+  // ── Min win check: need at least 44pt move (1:2 on 22pt SL) ──
+  const minWinPts = FIXED_SL * 2; // 44 pts
+  const minWinRs  = lots * minWinPts * U;
 
-  document.getElementById('riskAmt').textContent = '₹' + Math.round(riskBudget).toLocaleString('en-IN');
+  // ── Display ──
+  document.getElementById('riskAmt').textContent  = '₹' + (fixedRisk[grade] || 0).toLocaleString('en-IN');
   document.getElementById('stopDist').textContent = slDist.toFixed(1) + ' pts';
-  document.getElementById('lotSug').textContent = lots > 0 ? lots + (lots === 1 ? ' lot' : ' lots') : 'Widen stop';
-  document.getElementById('maxRisk').textContent = actualRisk > 0 ? '₹' + Math.round(actualRisk).toLocaleString('en-IN') : '—';
+  document.getElementById('lotSug').textContent   = lots > 0 ? lots + ' lots (' + (lots * U) + ' units)' : 'Not allowed';
+  document.getElementById('maxRisk').textContent  = lots > 0 && actualRisk > 0 ? '₹' + Math.round(actualRisk).toLocaleString('en-IN') : '—';
   document.getElementById('leg1Target').textContent = t1Pnl ? '+₹' + Math.round(t1Pnl).toLocaleString('en-IN') : '—';
   document.getElementById('leg2Target').textContent = t2Pnl ? '+₹' + Math.round(t2Pnl).toLocaleString('en-IN') : '—';
 
+  // ── Alert logic ──
+  if (!alert) return;
   alert.className = 'alert';
-  if (slDist > maxStop) {
+
+  if (lots === 0) {
+    alert.className = 'alert alert-red show';
+    alert.textContent = `⛔ ${grade} not permitted today — VIX regime or day type restricts this grade. Check Session page.`;
+    return;
+  }
+  if (slDist > FIXED_SL) {
     alert.className = 'alert alert-yellow show';
-    alert.textContent = `⚠️ SL distance ${slDist}pts exceeds ${grade} max (${maxStop}pts). Downgrade or skip.`;
-  } else if (lots === 0) {
+    alert.textContent = `⚠️ Your SL is ${slDist}pts — wider than the 22pt rule. Tighten to 22pts or the actual risk will be ₹${Math.round(actualRisk).toLocaleString('en-IN')}.`;
+    return;
+  }
+  if (t1 && Math.abs(t1 - entry) < minWinPts) {
     alert.className = 'alert alert-yellow show';
-    alert.textContent = 'SL too wide for risk budget. Reduce SL distance or downgrade.';
+    alert.textContent = `⚠️ Target 1 is only ${Math.abs(t1-entry).toFixed(0)}pts away — below 44pt minimum. R:R under 1:2. Skip or move target.`;
+    return;
+  }
+  const rr = t1 && slDist > 0 ? (Math.abs(t1 - entry) / slDist).toFixed(1) : null;
+  if (rr && parseFloat(rr) >= 2) {
+    alert.className = 'alert alert-green show';
+    alert.textContent = `✓ ${grade} · ${lots} lots · SL ${slDist}pts · R:R ${rr}:1 · Max risk ₹${Math.round(actualRisk).toLocaleString('en-IN')} · Min win ₹${Math.round(minWinRs).toLocaleString('en-IN')}`;
   }
 }
 
