@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://accounts.google.com/gsi/client" async defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
   :root {
     --obsidian: #0a0e1a;
@@ -618,7 +619,7 @@
 
   <!-- LOT ENFORCER -->
   <div class="card">
-    <div class="card-title">Today's Lot Allocation</div>
+    <div class="card-title">Today's Max Lot Ceiling</div>
     <div class="lot-enforcer">
       <div class="lot-enforcer-row">
         <div><span class="lot-grade" style="color:var(--green);">A+</span><div class="lot-details" id="le-aplus-detail">7 lots · 455 units</div></div>
@@ -633,7 +634,7 @@
         <div class="lot-numbers" id="le-b-risk" style="color:var(--blue);">Risk ₹5,720</div>
       </div>
     </div>
-    <div style="font-size:10px;color:var(--text-muted);margin-top:6px;line-height:1.5;">Stop = 22 pts · Min win = 44 pts · Leg 1 compulsory at +40 pts</div>
+    <div style="font-size:10px;color:var(--text-muted);margin-top:6px;line-height:1.5;">These are max lots at a 22pt SL. Wider SL → fewer lots automatically (risk budget stays fixed). Calculated live on the Trade tab.</div>
   </div>
 
   <!-- VIX REGIME EXTENDED -->
@@ -1154,19 +1155,19 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="field">
         <label>Entry Premium (₹)</label>
-        <input type="number" id="entryPrice" placeholder="120" oninput="calcRisk()">
+        <input type="number" id="entryPrice" placeholder="120" oninput="calcRisk();saveTradeChecklistDraft()">
       </div>
       <div class="field">
         <label>SL Premium (₹)</label>
-        <input type="number" id="stopPrice" placeholder="80" oninput="calcRisk()">
+        <input type="number" id="stopPrice" placeholder="80" oninput="calcRisk();saveTradeChecklistDraft()">
       </div>
       <div class="field">
         <label>Target 1 Premium (₹)</label>
-        <input type="number" id="target1Price" placeholder="180" oninput="calcRisk()">
+        <input type="number" id="target1Price" placeholder="180" oninput="calcRisk();saveTradeChecklistDraft()">
       </div>
       <div class="field">
         <label>Target 2 Premium (₹)</label>
-        <input type="number" id="target2Price" placeholder="240" oninput="calcRisk()">
+        <input type="number" id="target2Price" placeholder="240" oninput="calcRisk();saveTradeChecklistDraft()">
       </div>
     </div>
 
@@ -1235,6 +1236,7 @@
     <button class="btn btn-sm btn-outline" onclick="filterTrades('A+')" id="f-aplus" style="white-space:nowrap;">A+</button>
     <button class="btn btn-sm btn-outline" onclick="filterTrades('A')" id="f-a" style="white-space:nowrap;">A</button>
     <button class="btn btn-sm btn-outline" onclick="filterTrades('B')" id="f-b" style="white-space:nowrap;">B</button>
+    <button class="btn btn-sm btn-outline" onclick="filterTrades('historical')" id="f-historical" style="white-space:nowrap;">Historical</button>
   </div>
 
   <div id="tradeList"></div>
@@ -1321,7 +1323,23 @@
     </div>
   </div>
 
+  <!-- HISTORICAL PERFORMANCE (backfilled trades) -->
+  <div class="card" id="historicalCard" style="display:none;">
+    <div class="card-title">Historical Performance <span style="font-size:11px;color:var(--text-muted);font-weight:400;">(pre-Vayu backfill)</span></div>
+    <div class="analytics-grid" id="hist-summary-grid"></div>
+    <div style="position:relative;height:220px;margin:14px 0;">
+      <canvas id="histMonthlyChart" role="img" aria-label="Monthly P&L bar chart for historical imported trades"></canvas>
+    </div>
+    <div style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-muted);margin:14px 0 8px;">By day of week</div>
+    <div id="hist-dow"></div>
+    <div style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-muted);margin:14px 0 8px;">By holding duration</div>
+    <div id="hist-hold"></div>
+    <div style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-muted);margin:14px 0 8px;">CE vs PE</div>
+    <div id="hist-opttype"></div>
+  </div>
+
   <!-- EXPORT -->
+
   <div class="card">
     <div class="card-title">Export to Google Sheets</div>
     <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">
@@ -1360,6 +1378,15 @@
   <div class="card">
     <div class="card-title">Reconfigure Setup</div>
     <button class="btn btn-outline" onclick="showSetupScreen()">Re-run Setup Wizard</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Import Historical Trades</div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">
+      Backfill trades reconstructed from your broker tradebook. These are tagged as historical — kept separate from your live graded stats, but included in the Historical Performance view and synced to Sheets.
+    </div>
+    <input type="file" id="historicalFileInput" accept="application/json" style="display:none;" onchange="handleHistoricalFileSelect(this)">
+    <button class="btn btn-gold" onclick="document.getElementById('historicalFileInput').click()">Choose historical_trades.json →</button>
   </div>
 
   <div class="card">
@@ -1501,19 +1528,19 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="field">
         <label>Entry Premium (₹)</label>
-        <input type="number" id="te-entry" placeholder="120">
+        <input type="number" id="te-entry" placeholder="120" oninput="saveTradeEntryDraft()">
       </div>
       <div class="field">
         <label>SL Premium (₹)</label>
-        <input type="number" id="te-stop" placeholder="80">
+        <input type="number" id="te-stop" placeholder="80" oninput="saveTradeEntryDraft()">
       </div>
       <div class="field">
         <label>Target 1 Premium (₹)</label>
-        <input type="number" id="te-target1" placeholder="180">
+        <input type="number" id="te-target1" placeholder="180" oninput="saveTradeEntryDraft()">
       </div>
       <div class="field">
         <label>Target 2 Premium (₹)</label>
-        <input type="number" id="te-target2" placeholder="240">
+        <input type="number" id="te-target2" placeholder="240" oninput="saveTradeEntryDraft()">
       </div>
       <div class="field">
         <label>Exit Premium (₹)</label>
@@ -1581,27 +1608,27 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
           <div class="field">
             <label>Re-entry Premium (₹)</label>
-            <input type="number" id="te-re-entry" placeholder="95">
+            <input type="number" id="te-re-entry" placeholder="95" oninput="saveTradeEntryDraft()">
           </div>
           <div class="field">
             <label>Re-entry SL (₹)</label>
-            <input type="number" id="te-re-stop" placeholder="70">
+            <input type="number" id="te-re-stop" placeholder="70" oninput="saveTradeEntryDraft()">
           </div>
           <div class="field">
             <label>Re-entry Target 1 (₹)</label>
-            <input type="number" id="te-re-target1" placeholder="150">
+            <input type="number" id="te-re-target1" placeholder="150" oninput="saveTradeEntryDraft()">
           </div>
           <div class="field">
             <label>Re-entry Target 2 (₹)</label>
-            <input type="number" id="te-re-target2" placeholder="200">
+            <input type="number" id="te-re-target2" placeholder="200" oninput="saveTradeEntryDraft()">
           </div>
           <div class="field">
             <label>Re-entry Exit (₹)</label>
-            <input type="number" id="te-re-exit" placeholder="145">
+            <input type="number" id="te-re-exit" placeholder="145" oninput="saveTradeEntryDraft()">
           </div>
           <div class="field">
             <label>Re-entry Lots</label>
-            <input type="number" id="te-re-lots" placeholder="1" value="1">
+            <input type="number" id="te-re-lots" placeholder="1" value="1" oninput="saveTradeEntryDraft()">
           </div>
         </div>
         <div class="field">
@@ -1626,7 +1653,7 @@
 
     <div class="field">
       <label>Trade Notes</label>
-      <textarea id="te-notes" placeholder="What did you see? What was the read? How did body feel at entry?"></textarea>
+      <textarea id="te-notes" placeholder="What did you see? What was the read? How did body feel at entry?" oninput="saveTradeEntryDraft()"></textarea>
     </div>
 
     <!-- Calculated P&L preview -->
@@ -2250,9 +2277,8 @@ async function loadFromSheets() {
 // ═══════════════════════════════════════════════════
 // WRITE TO SHEETS
 // ═══════════════════════════════════════════════════
-async function syncTradeToSheets(trade) {
-  if (!syncEnabled) return;
-  const row = [
+function tradeToRow(trade) {
+  return [
     trade.id, trade.date, trade.time, trade.direction, trade.grade,
     trade.setup, trade.outcome,
     trade.entry, trade.exit, trade.stop,
@@ -2268,6 +2294,11 @@ async function syncTradeToSheets(trade) {
     trade.reentry ? trade.reentry.pnl||'' : '',
     trade.notes || ''
   ];
+}
+
+async function syncTradeToSheets(trade) {
+  if (!syncEnabled) return;
+  const row = tradeToRow(trade);
 
   // 25 columns: A through Y
   const colRange = 'Y';
@@ -2288,6 +2319,32 @@ async function syncTradeToSheets(trade) {
       values: [row]
     });
   }
+}
+
+// Batch sync — used for bulk historical import. One ID check, one append with
+// all rows, instead of a GET+POST per trade (avoids ~450 sequential API calls).
+async function syncBulkTradesToSheets(trades, onProgress) {
+  if (!syncEnabled || !trades.length) return { synced: 0, skipped: 0 };
+  const existing = await sheetsRequest('GET', `/values/${SHEET_TRADES}!A:A`);
+  const existingIds = new Set(((existing && existing.values) || []).map(r => String(r[0])));
+
+  const newRows = [];
+  let skipped = 0;
+  trades.forEach(t => {
+    if (existingIds.has(String(t.id))) { skipped++; return; }
+    newRows.push(tradeToRow(t));
+  });
+
+  // Sheets append has practical batch limits — chunk at 200 rows per request
+  const CHUNK = 200;
+  for (let i = 0; i < newRows.length; i += CHUNK) {
+    const chunk = newRows.slice(i, i + CHUNK);
+    await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:Y:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+      values: chunk
+    });
+    if (onProgress) onProgress(Math.min(i + CHUNK, newRows.length), newRows.length);
+  }
+  return { synced: newRows.length, skipped };
 }
 
 async function syncSessionToSheets() {
@@ -2515,6 +2572,10 @@ function init() {
   if (appState.vixLevel) setVixExt(appState.vixLevel, true);
   else setVixExt('v2', true);
   setInterval(function() { updateSessionWindows(); }, 30000);
+
+  // v5: restore any unsaved drafts
+  restoreTradeChecklistDraft();
+  restoreTradeEntryDraft();
 }
 
 function loadData() {
@@ -2530,7 +2591,7 @@ function loadData() {
       // Both CE Buy (Long) and PE Buy (Short) are buys — always (exit - entry) × lots × 65
       let migrated = false;
       appState.trades.forEach(t => {
-        if (t.entry && t.exit && t.lots) {
+        if (t.entry && t.exit && t.lots && !t.historical) {
           const correctPnl = (t.exit - t.entry) * t.lots * 65;
           const reentryPnl = (t.reentry && t.reentry.entry && t.reentry.exit)
             ? (t.reentry.exit - t.reentry.entry) * (t.reentry.lots || 1) * 65
@@ -2749,6 +2810,7 @@ function toggleConfluence(el, pts) {
     appState.confluenceScore += pts;
   }
   updateConfluenceDisplay();
+  saveTradeChecklistDraft();
 }
 
 function updateConfluenceDisplay() {
@@ -2772,8 +2834,8 @@ function updateConfluenceDisplay() {
     const cfg = appState.lotsConfig || { aplus: 7, a: 6, b: 4 };
     const gradeKey = appState.selectedGrade === 'A+' ? 'aplus' : appState.selectedGrade === 'A' ? 'a' : 'b';
     const lots = cfg[gradeKey] || 0;
-    const fixedRisk = { 'A+': 7*65*22, 'A': 6*65*22, 'B': 4*65*22 };
-    const riskNote = lots === 0 ? ' — NOT PERMITTED today' : ` · ${lots} lots · Risk ₹${(fixedRisk[appState.selectedGrade]||0).toLocaleString('en-IN')}`;
+    const RISK_BUDGET = { 'A+': 10010, 'A': 8580, 'B': 5720 };
+    const riskNote = lots === 0 ? ' — NOT PERMITTED today' : ` · max ${lots} lots · Budget ₹${(RISK_BUDGET[appState.selectedGrade]||0).toLocaleString('en-IN')}`;
     tradeGradeDisplay.textContent = grade + riskNote;
     tradeGradeDisplay.style.color = lots === 0 ? 'var(--red)' : 'var(--gold)';
   } else {
@@ -2795,7 +2857,6 @@ function calcRisk() {
   const grade = appState.selectedGrade;
   const alert = document.getElementById('riskAlert');
   const U = 65; // units per lot
-  const FIXED_SL = 22; // canonical stop in premium points
 
   if (!entry || !stop || !grade) {
     ['riskAmt','stopDist','lotSug','maxRisk','leg1Target','leg2Target'].forEach(id => {
@@ -2805,32 +2866,40 @@ function calcRisk() {
     return;
   }
 
-  // ── Lots come from lotsConfig (set by VIX + day type) ──
-  // Ensure lotsConfig is populated even if updateLotEnforcer hasn't run yet
+  // ── Risk budget per grade is FIXED in rupees — this never changes ──
+  const RISK_BUDGET = { 'A+': 10010, 'A': 8580, 'B': 5720 };
+  const riskBudget = RISK_BUDGET[grade] || 0;
+
+  // ── Lot CEILING comes from VIX + day type (max lots ever allowed for this grade today) ──
   if (!appState.lotsConfig) updateLotEnforcer();
   const cfg = appState.lotsConfig || { aplus: 7, a: 6, b: 4 };
   const gradeKey = grade === 'A+' ? 'aplus' : grade === 'A' ? 'a' : 'b';
-  const lots = cfg[gradeKey] || 0;
+  const lotCeiling = cfg[gradeKey] || 0;
 
-  // ── Fixed risk per grade at canonical 22pt SL ──
-  const fixedRisk = { 'A+': 7 * U * FIXED_SL, 'A': 6 * U * FIXED_SL, 'B': 4 * U * FIXED_SL };
-  // Actual risk uses the real SL the trader entered
-  const slDist    = Math.abs(entry - stop);
+  // ── Actual SL distance from what trader entered ──
+  const slDist = Math.abs(entry - stop);
+
+  // ── DYNAMIC LOTS: risk budget ÷ (SL distance × unit value), capped at ceiling ──
+  let lots = 0;
+  if (slDist > 0) {
+    const lotsFromRisk = Math.floor(riskBudget / (slDist * U));
+    lots = Math.min(lotsFromRisk, lotCeiling);
+  }
   const actualRisk = lots * slDist * U;
 
   // ── Target P&L ──
   const t1Pnl = (t1 && lots) ? Math.abs(t1 - entry) * U * lots : null;
   const t2Pnl = (t2 && lots) ? Math.abs(t2 - entry) * U * lots : null;
 
-  // ── Min win check: need at least 44pt move (1:2 on 22pt SL) ──
-  const minWinPts = FIXED_SL * 2; // 44 pts
+  // ── Min win check: 1:2 R:R off the ACTUAL SL distance ──
+  const minWinPts = slDist * 2;
   const minWinRs  = lots * minWinPts * U;
 
   // ── Display ──
-  document.getElementById('riskAmt').textContent  = '₹' + (fixedRisk[grade] || 0).toLocaleString('en-IN');
+  document.getElementById('riskAmt').textContent  = '₹' + riskBudget.toLocaleString('en-IN');
   document.getElementById('stopDist').textContent = slDist.toFixed(1) + ' pts';
-  document.getElementById('lotSug').textContent   = lots > 0 ? lots + ' lots (' + (lots * U) + ' units)' : 'Not allowed';
-  document.getElementById('maxRisk').textContent  = lots > 0 && actualRisk > 0 ? '₹' + Math.round(actualRisk).toLocaleString('en-IN') : '—';
+  document.getElementById('lotSug').textContent   = lots > 0 ? lots + ' lots (' + (lots * U) + ' units)' : 'SL too wide';
+  document.getElementById('maxRisk').textContent  = lots > 0 ? '₹' + Math.round(actualRisk).toLocaleString('en-IN') : '—';
   document.getElementById('leg1Target').textContent = t1Pnl ? '+₹' + Math.round(t1Pnl).toLocaleString('en-IN') : '—';
   document.getElementById('leg2Target').textContent = t2Pnl ? '+₹' + Math.round(t2Pnl).toLocaleString('en-IN') : '—';
 
@@ -2838,25 +2907,37 @@ function calcRisk() {
   if (!alert) return;
   alert.className = 'alert';
 
-  if (lots === 0) {
+  if (lotCeiling === 0) {
     alert.className = 'alert alert-red show';
     alert.textContent = `⛔ ${grade} not permitted today — VIX regime or day type restricts this grade. Check Session page.`;
     return;
   }
-  if (slDist > FIXED_SL) {
-    alert.className = 'alert alert-yellow show';
-    alert.textContent = `⚠️ Your SL is ${slDist}pts — wider than the 22pt rule. Tighten to 22pts or the actual risk will be ₹${Math.round(actualRisk).toLocaleString('en-IN')}.`;
+  if (lots === 0) {
+    alert.className = 'alert alert-red show';
+    alert.textContent = `⛔ SL of ${slDist.toFixed(0)}pts is too wide — even 1 lot would risk ₹${Math.round(slDist*U).toLocaleString('en-IN')}, above the ₹${riskBudget.toLocaleString('en-IN')} budget. Tighten SL.`;
+    return;
+  }
+  if (lots < lotCeiling) {
+    // Risk budget is the binding constraint, not VIX/day-type — this is fine, just informational
+    const noteColor = 'alert-yellow';
+    if (t1 && Math.abs(t1 - entry) < minWinPts) {
+      alert.className = `alert ${noteColor} show`;
+      alert.textContent = `ℹ️ Wider SL (${slDist.toFixed(0)}pts) reduced lots to ${lots} to hold risk at ₹${riskBudget.toLocaleString('en-IN')}. But Target 1 is below the 1:2 min (need ${minWinPts.toFixed(0)}pts). Skip or move target.`;
+      return;
+    }
+    alert.className = `alert ${noteColor} show`;
+    alert.textContent = `ℹ️ Wider SL (${slDist.toFixed(0)}pts) auto-reduced lots to ${lots} (from ${lotCeiling} max) to hold risk at exactly ₹${riskBudget.toLocaleString('en-IN')}.`;
     return;
   }
   if (t1 && Math.abs(t1 - entry) < minWinPts) {
     alert.className = 'alert alert-yellow show';
-    alert.textContent = `⚠️ Target 1 is only ${Math.abs(t1-entry).toFixed(0)}pts away — below 44pt minimum. R:R under 1:2. Skip or move target.`;
+    alert.textContent = `⚠️ Target 1 is only ${Math.abs(t1-entry).toFixed(0)}pts away — below ${minWinPts.toFixed(0)}pt minimum (1:2 on this SL). Skip or move target.`;
     return;
   }
   const rr = t1 && slDist > 0 ? (Math.abs(t1 - entry) / slDist).toFixed(1) : null;
   if (rr && parseFloat(rr) >= 2) {
     alert.className = 'alert alert-green show';
-    alert.textContent = `✓ ${grade} · ${lots} lots · SL ${slDist}pts · R:R ${rr}:1 · Max risk ₹${Math.round(actualRisk).toLocaleString('en-IN')} · Min win ₹${Math.round(minWinRs).toLocaleString('en-IN')}`;
+    alert.textContent = `✓ ${grade} · ${lots} lots (full size) · SL ${slDist.toFixed(0)}pts · R:R ${rr}:1 · Risk ₹${Math.round(actualRisk).toLocaleString('en-IN')} · Min win ₹${Math.round(minWinRs).toLocaleString('en-IN')}`;
   }
 }
 
@@ -2866,6 +2947,7 @@ function selectDirection(dir) {
     p.classList.toggle('sel', p.textContent.startsWith(dir));
   });
   calcRisk();
+  saveTradeChecklistDraft();
 }
 
 // ═══════════════════════════════════════════════════
@@ -2968,6 +3050,7 @@ function saveTrade() {
 
   closeModal('modal-trade-entry');
   resetTradeEntryForm();
+  resetTradeChecklistForm();
   showToast(totalPnl >= 0 ? `Trade saved — +₹${Math.abs(totalPnl).toLocaleString('en-IN')}` : `Trade saved — −₹${Math.abs(totalPnl).toLocaleString('en-IN')}`);
 }
 
@@ -2983,6 +3066,163 @@ function resetTradeEntryForm() {
   if (rs) rs.style.display = 'none';
   const preview = document.getElementById('te-pnl-preview');
   if (preview) preview.style.display = 'none';
+  clearTradeEntryDraft();
+}
+
+// ═══════════════════════════════════════════════════
+// v5: DRAFT PERSISTENCE — Trade tab (checklist + risk calc)
+// ═══════════════════════════════════════════════════
+const DRAFT_KEY_CHECKLIST = 'vayu_draft_tradetab';
+const DRAFT_KEY_ENTRY = 'vayu_draft_tradeentry';
+
+function saveTradeChecklistDraft() {
+  try {
+    const checks = Array.from(document.querySelectorAll('#confluenceList .check-box'))
+      .map(b => b.classList.contains('checked'));
+    const draft = {
+      checks,
+      score: appState.confluenceScore || 0,
+      grade: appState.selectedGrade || null,
+      direction: appState.tradeDirection || null,
+      entry: document.getElementById('entryPrice')?.value || '',
+      stop: document.getElementById('stopPrice')?.value || '',
+      target1: document.getElementById('target1Price')?.value || '',
+      target2: document.getElementById('target2Price')?.value || ''
+    };
+    localStorage.setItem(DRAFT_KEY_CHECKLIST, JSON.stringify(draft));
+  } catch(e) { console.log('Draft save error:', e); }
+}
+
+function restoreTradeChecklistDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY_CHECKLIST);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+
+    // Restore checklist boxes
+    const boxes = document.querySelectorAll('#confluenceList .check-box');
+    if (draft.checks && draft.checks.length === boxes.length) {
+      boxes.forEach((b, i) => {
+        if (draft.checks[i]) b.classList.add('checked');
+        else b.classList.remove('checked');
+      });
+    }
+    appState.confluenceScore = draft.score || 0;
+    updateConfluenceDisplay();
+
+    // Restore risk calc fields
+    if (draft.entry) document.getElementById('entryPrice').value = draft.entry;
+    if (draft.stop) document.getElementById('stopPrice').value = draft.stop;
+    if (draft.target1) document.getElementById('target1Price').value = draft.target1;
+    if (draft.target2) document.getElementById('target2Price').value = draft.target2;
+
+    // Restore direction pill
+    if (draft.direction) {
+      appState.tradeDirection = draft.direction;
+      document.querySelectorAll('#direction .pill').forEach(p => {
+        p.classList.toggle('sel', p.textContent.startsWith(draft.direction));
+      });
+    }
+
+    if (draft.entry || draft.stop) calcRisk();
+  } catch(e) { console.log('Draft restore error:', e); }
+}
+
+function clearTradeChecklistDraft() {
+  localStorage.removeItem(DRAFT_KEY_CHECKLIST);
+}
+
+function resetTradeChecklistForm() {
+  document.querySelectorAll('#confluenceList .check-box.checked').forEach(b => b.classList.remove('checked'));
+  appState.confluenceScore = 0;
+  appState.selectedGrade = null;
+  appState.tradeDirection = null;
+  updateConfluenceDisplay();
+  ['entryPrice','stopPrice','target1Price','target2Price'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  document.querySelectorAll('#direction .pill.sel').forEach(p => p.classList.remove('sel'));
+  ['riskAmt','stopDist','lotSug','maxRisk','leg1Target','leg2Target'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.textContent = '—';
+  });
+  const alert = document.getElementById('riskAlert');
+  if (alert) alert.className = 'alert';
+  clearTradeChecklistDraft();
+}
+
+// ═══════════════════════════════════════════════════
+// v5: DRAFT PERSISTENCE — Log Trade modal
+// ═══════════════════════════════════════════════════
+function saveTradeEntryDraft() {
+  try {
+    const fieldIds = ['te-entry','te-stop','te-target1','te-target2','te-exit','te-lots','te-notes',
+      're-entry','te-re-entry','te-re-stop','te-re-target1','te-re-target2','te-re-exit','te-re-lots'];
+    const values = {};
+    ['te-entry','te-stop','te-target1','te-target2','te-exit','te-lots','te-notes',
+     'te-re-entry','te-re-stop','te-re-target1','te-re-target2','te-re-exit','te-re-lots'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) values[id] = el.value;
+    });
+
+    const pillGroups = ['te-dir','te-grade','te-outcome','te-violation','te-re-outcome'];
+    const pills = {};
+    pillGroups.forEach(g => {
+      const sel = document.querySelector('#' + g + ' .pill.sel');
+      pills[g] = sel ? sel.textContent : null;
+    });
+
+    const multiSetup = Array.from(document.querySelectorAll('#te-setup .pill.sel')).map(p => p.textContent);
+    const reentryAllowed = document.getElementById('te-reentry-allowed')?.checked || false;
+
+    const draft = { values, pills, multiSetup, reentryAllowed };
+    localStorage.setItem(DRAFT_KEY_ENTRY, JSON.stringify(draft));
+  } catch(e) { console.log('Trade entry draft save error:', e); }
+}
+
+function restoreTradeEntryDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY_ENTRY);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+
+    Object.keys(draft.values || {}).forEach(id => {
+      const el = document.getElementById(id);
+      if (el && draft.values[id]) el.value = draft.values[id];
+    });
+
+    Object.keys(draft.pills || {}).forEach(g => {
+      const text = draft.pills[g];
+      if (!text) return;
+      document.querySelectorAll('#' + g + ' .pill').forEach(p => {
+        p.classList.toggle('sel', p.textContent === text);
+      });
+    });
+
+    (draft.multiSetup || []).forEach(text => {
+      document.querySelectorAll('#te-setup .pill').forEach(p => {
+        if (p.textContent === text) p.classList.add('sel');
+      });
+    });
+
+    if (draft.reentryAllowed) {
+      const cb = document.getElementById('te-reentry-allowed');
+      if (cb) { cb.checked = true; toggleReentrySection(); }
+    }
+
+    updateTradePnlPreview();
+
+    // If there's meaningful draft content, surface the modal so the trader sees it restored
+    const hasContent = Object.values(draft.values || {}).some(v => v) ||
+      Object.values(draft.pills || {}).some(v => v) ||
+      (draft.multiSetup && draft.multiSetup.length);
+    if (hasContent) {
+      showToast('Unsaved trade draft restored');
+    }
+  } catch(e) { console.log('Trade entry draft restore error:', e); }
+}
+
+function clearTradeEntryDraft() {
+  localStorage.removeItem(DRAFT_KEY_ENTRY);
 }
 
 function updateTradePnlPreview() {
@@ -2993,7 +3233,7 @@ function updateTradePnlPreview() {
   const valEl = document.getElementById('te-pnl-val');
   const breakEl = document.getElementById('te-pnl-breakdown');
 
-  if (!entry || !exit) { preview.style.display = 'none'; return; }
+  if (!entry || !exit) { preview.style.display = 'none'; saveTradeEntryDraft(); return; }
 
   // Always (exit - entry) × lots × 65
   const pnl = (exit - entry) * lots * 65;
@@ -3001,15 +3241,18 @@ function updateTradePnlPreview() {
   valEl.textContent = (pnl >= 0 ? '+₹' : '−₹') + Math.abs(Math.round(pnl)).toLocaleString('en-IN');
   valEl.style.color = pnl >= 0 ? 'var(--green)' : 'var(--red)';
   breakEl.textContent = `(${exit} − ${entry}) × ${lots} lot${lots > 1 ? 's' : ''} × 65 = ₹${Math.abs(Math.round(pnl)).toLocaleString('en-IN')}`;
+  saveTradeEntryDraft();
 }
 
 function toggleReentrySection() {
   const show = document.getElementById('te-reentry-allowed').checked;
   document.getElementById('reentry-section').style.display = show ? 'block' : 'none';
+  saveTradeEntryDraft();
 }
 
 function toggleMultiPill(el) {
   el.classList.toggle('sel');
+  saveTradeEntryDraft();
 }
 
 function updateDayStats() {
@@ -3082,11 +3325,15 @@ function renderTradeList() {
   if (!list) return;
 
   let trades = appState.trades;
-  if (currentFilter === 'win') trades = trades.filter(t => t.outcome === 'Win');
-  else if (currentFilter === 'loss') trades = trades.filter(t => t.outcome === 'Loss');
-  else if (currentFilter === 'A+') trades = trades.filter(t => t.grade === 'A+');
-  else if (currentFilter === 'A') trades = trades.filter(t => t.grade === 'A');
-  else if (currentFilter === 'B') trades = trades.filter(t => t.grade === 'B');
+  if (currentFilter === 'historical') trades = trades.filter(t => t.historical);
+  else {
+    trades = trades.filter(t => !t.historical);
+    if (currentFilter === 'win') trades = trades.filter(t => t.outcome === 'Win');
+    else if (currentFilter === 'loss') trades = trades.filter(t => t.outcome === 'Loss');
+    else if (currentFilter === 'A+') trades = trades.filter(t => t.grade === 'A+');
+    else if (currentFilter === 'A') trades = trades.filter(t => t.grade === 'A');
+    else if (currentFilter === 'B') trades = trades.filter(t => t.grade === 'B');
+  }
 
   if (trades.length === 0) {
     list.innerHTML = `<div class="empty-state">
@@ -3181,7 +3428,8 @@ function deleteTrade(id) {
 // ANALYTICS
 // ═══════════════════════════════════════════════════
 function renderAnalytics() {
-  const trades = appState.trades;
+  const trades = appState.trades.filter(t => !t.historical);
+  renderHistoricalAnalysis();
   if (!trades.length) return;
 
   const wins = trades.filter(t => t.outcome === 'Win');
@@ -3270,6 +3518,116 @@ function renderAnalytics() {
 
   // Expectancy tracker
   renderExpectancyTracker();
+}
+
+let histChartInstance = null;
+function renderHistoricalAnalysis() {
+  const trades = appState.trades.filter(t => t.historical);
+  const card = document.getElementById('historicalCard');
+  if (!card) return;
+  if (!trades.length) { card.style.display = 'none'; return; }
+  card.style.display = 'block';
+
+  const wins = trades.filter(t => t.pnl > 0);
+  const losses = trades.filter(t => t.pnl < 0);
+  const wr = (wins.length / trades.length * 100).toFixed(1);
+  const totalPnl = trades.reduce((a,t) => a + t.pnl, 0);
+  const avgWin = wins.length ? wins.reduce((a,t)=>a+t.pnl,0)/wins.length : 0;
+  const avgLoss = losses.length ? Math.abs(losses.reduce((a,t)=>a+t.pnl,0)/losses.length) : 0;
+  const expectancy = trades.length ? totalPnl / trades.length : 0;
+
+  document.getElementById('hist-summary-grid').innerHTML = `
+    <div class="analytics-box"><div class="av ${wr>=50?'positive':'negative'}">${wr}%</div><div class="al">Win Rate</div></div>
+    <div class="analytics-box"><div class="av neutral-col">₹${Math.round(Math.abs(expectancy)).toLocaleString('en-IN')}</div><div class="al">Expectancy/Trade</div></div>
+    <div class="analytics-box"><div class="av">${trades.length}</div><div class="al">Total Trades</div></div>
+    <div class="analytics-box"><div class="av ${totalPnl>=0?'positive':'negative'}">${totalPnl>=0?'+':'−'}₹${Math.round(Math.abs(totalPnl)).toLocaleString('en-IN')}</div><div class="al">Total P&L</div></div>
+  `;
+
+  // Monthly breakdown
+  const byMonth = {};
+  trades.forEach(t => {
+    const m = t.date.slice(0,7);
+    byMonth[m] = (byMonth[m] || 0) + t.pnl;
+  });
+  const months = Object.keys(byMonth).sort();
+  const monthVals = months.map(m => byMonth[m]);
+  const isDark = true;
+  if (histChartInstance) histChartInstance.destroy();
+  const ctx = document.getElementById('histMonthlyChart');
+  if (ctx && window.Chart) {
+    histChartInstance = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: months.map(m => { const [y,mo] = m.split('-'); return new Date(y,mo-1,1).toLocaleDateString('en-IN',{month:'short',year:'2-digit'}); }),
+        datasets: [{ data: monthVals, backgroundColor: monthVals.map(v => v>=0 ? '#22c55e' : '#ef4444'), borderRadius: 3, maxBarThickness: 22 }]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => '₹' + Math.round(c.raw).toLocaleString('en-IN') } } },
+        scales: {
+          x: { ticks: { color: '#7a8ba3', font: { size: 10 }, maxRotation: 45, autoSkip: false }, grid: { display: false } },
+          y: { ticks: { color: '#7a8ba3', font: { size: 10 }, callback: v => (v<0?'−':'') + '₹' + Math.round(Math.abs(v)/1000) + 'k' }, grid: { color: '#1e2d47' } }
+        }
+      }
+    });
+  }
+
+  // Day of week
+  const dowOrder = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  const byDow = {};
+  dowOrder.forEach(d => byDow[d] = { n:0, pnl:0, wins:0 });
+  trades.forEach(t => {
+    const d = new Date(t.date).toLocaleDateString('en-US', { weekday: 'long' });
+    if (!byDow[d]) return;
+    byDow[d].n++; byDow[d].pnl += t.pnl; if (t.pnl > 0) byDow[d].wins++;
+  });
+  document.getElementById('hist-dow').innerHTML = dowOrder.map(d => {
+    const b = byDow[d];
+    if (!b.n) return '';
+    const wr2 = Math.round(b.wins/b.n*100);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <span>${d} <span style="color:var(--text-dim);font-size:11px;">(${b.n} · ${wr2}% WR)</span></span>
+      <span style="font-family:var(--mono);color:${b.pnl>=0?'var(--green)':'var(--red)'};">${b.pnl>=0?'+':'−'}₹${Math.round(Math.abs(b.pnl)).toLocaleString('en-IN')}</span>
+    </div>`;
+  }).join('');
+
+  // Holding duration buckets
+  const buckets = [
+    { label: '<15 min', min: 0, max: 15 },
+    { label: '15–60 min', min: 15, max: 60 },
+    { label: '1–3 hr', min: 60, max: 180 },
+    { label: '3hr–EOD', min: 180, max: 375 },
+    { label: 'Multi-day', min: 375, max: Infinity }
+  ];
+  document.getElementById('hist-hold').innerHTML = buckets.map(b => {
+    const bt = trades.filter(t => (t.holdMin||0) >= b.min && (t.holdMin||0) < b.max);
+    if (!bt.length) return '';
+    const bw = bt.filter(t => t.pnl > 0).length;
+    const bpnl = bt.reduce((a,t)=>a+t.pnl,0);
+    const wr2 = Math.round(bw/bt.length*100);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <span>${b.label} <span style="color:var(--text-dim);font-size:11px;">(${bt.length} · ${wr2}% WR)</span></span>
+      <span style="font-family:var(--mono);color:${bpnl>=0?'var(--green)':'var(--red)'};">${bpnl>=0?'+':'−'}₹${Math.round(Math.abs(bpnl)).toLocaleString('en-IN')}</span>
+    </div>`;
+  }).join('');
+
+  // CE vs PE
+  ['CE','PE'].forEach(() => {});
+  const byOpt = { CE: { n:0, pnl:0, wins:0 }, PE: { n:0, pnl:0, wins:0 } };
+  trades.forEach(t => {
+    const ot = t.optType || (t.symbol && t.symbol.slice(-2));
+    if (!byOpt[ot]) return;
+    byOpt[ot].n++; byOpt[ot].pnl += t.pnl; if (t.pnl > 0) byOpt[ot].wins++;
+  });
+  document.getElementById('hist-opttype').innerHTML = ['CE','PE'].map(ot => {
+    const b = byOpt[ot];
+    if (!b.n) return '';
+    const wr2 = Math.round(b.wins/b.n*100);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px;">
+      <span>${ot} <span style="color:var(--text-dim);font-size:11px;">(${b.n} · ${wr2}% WR)</span></span>
+      <span style="font-family:var(--mono);color:${b.pnl>=0?'var(--green)':'var(--red)'};">${b.pnl>=0?'+':'−'}₹${Math.round(Math.abs(b.pnl)).toLocaleString('en-IN')}</span>
+    </div>`;
+  }).join('');
 }
 
 // ═══════════════════════════════════════════════════
@@ -3599,6 +3957,66 @@ function exportCSV(type) {
 }
 
 // ═══════════════════════════════════════════════════
+// HISTORICAL IMPORT — backfill from broker tradebook
+// ═══════════════════════════════════════════════════
+function handleHistoricalFileSelect(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const data = JSON.parse(e.target.result);
+      importHistoricalTrades(Array.isArray(data) ? data : (data.trades || []));
+    } catch (err) {
+      showToast('Could not parse file — expecting the historical_trades.json export.');
+      console.error(err);
+    }
+    input.value = '';
+  };
+  reader.readAsText(file);
+}
+
+async function importHistoricalTrades(incoming) {
+  if (!incoming || !incoming.length) { showToast('No trades found in file.'); return; }
+
+  const existingIds = new Set(appState.trades.map(t => String(t.id)));
+  const toAdd = incoming.filter(t => !existingIds.has(String(t.id)));
+  const dupes = incoming.length - toAdd.length;
+
+  if (!toAdd.length) {
+    showToast(`All ${incoming.length} trades already imported — nothing new.`);
+    return;
+  }
+
+  if (!confirm(`Import ${toAdd.length} historical trades${dupes ? ` (${dupes} already present, skipped)` : ''}? This backfills your trade log — it does not affect today's session state or capital.`)) {
+    return;
+  }
+
+  toAdd.forEach(t => { t.historical = true; });
+  appState.trades = appState.trades.concat(toAdd);
+  // Keep chronological display order (newest first), same convention as live entries
+  appState.trades.sort((a, b) => {
+    const da = new Date(a.date + ' ' + a.time);
+    const db = new Date(b.date + ' ' + b.time);
+    return db - da;
+  });
+
+  saveData();
+  renderTradeList();
+  renderAnalytics();
+  showToast(`Imported ${toAdd.length} historical trades. Syncing to Sheets…`);
+
+  if (syncEnabled) {
+    const result = await syncBulkTradesToSheets(toAdd, (done, total) => {
+      showToast(`Syncing historical trades… ${done}/${total}`);
+    });
+    showToast(`Sheets sync complete — ${result.synced} rows added.`);
+  } else {
+    showToast('Sign in to Google Sheets (Settings tab) to sync these trades too.');
+  }
+}
+
+// ═══════════════════════════════════════════════════
 // UI HELPERS
 // ═══════════════════════════════════════════════════
 function toggleCheck(el) {
@@ -3610,6 +4028,7 @@ function togglePill(el, group) {
   // Single select per group
   document.querySelectorAll('#' + group + ' .pill').forEach(p => p.classList.remove('sel'));
   el.classList.add('sel');
+  if (group && group.indexOf('te-') === 0) saveTradeEntryDraft();
 }
 
 function setPsych(key, val, el) {
