@@ -619,6 +619,38 @@
     </div>
   </div>
 
+  <!-- 9:45 MARKET CHECK -->
+  <div class="card">
+    <div class="card-title">9:45 Market Check <span style="color:var(--text-muted);font-size:9px;">— feeds the day-type suggestion below</span></div>
+    <div class="toggle-row">
+      <span class="toggle-label">Scheduled macro event today?</span>
+      <label class="toggle">
+        <input type="checkbox" id="mc-event">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="field">
+        <label>Today's High (so far)</label>
+        <input type="number" id="mc-high" placeholder="24080">
+      </div>
+      <div class="field">
+        <label>Today's Low (so far)</label>
+        <input type="number" id="mc-low" placeholder="24010">
+      </div>
+      <div class="field" style="grid-column:1/-1;">
+        <label>Today's POC (so far)</label>
+        <input type="number" id="mc-poc" placeholder="24045">
+      </div>
+    </div>
+    <button class="btn btn-outline" onclick="suggestDayType()">Suggest Day Type →</button>
+    <div id="daytypeSuggestion" style="display:none;margin-top:10px;padding:10px;background:var(--gold-glow);border:1px solid var(--gold-dim);border-radius:10px;">
+      <div id="daytypeSuggestionText" style="font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:8px;"></div>
+      <button class="btn btn-gold" style="padding:8px;font-size:12px;" onclick="confirmSuggestedDayType()">✓ Confirm this classification</button>
+    </div>
+    <div id="adrStatus" style="font-size:10px;color:var(--text-muted);margin-top:8px;"></div>
+  </div>
+
   <!-- DAY CLASSIFIER -->
   <div class="card">
     <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
@@ -1418,6 +1450,17 @@
   <div class="card">
     <div class="card-title">Reconfigure Setup</div>
     <button class="btn btn-outline" onclick="showSetupScreen()">Re-run Setup Wizard</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Backfill Daily Range History <span style="color:var(--text-muted);font-size:9px;font-weight:400;">— for ADR</span></div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">
+      The day-type suggestion compares today's range to your last 20 days' average range (ADR). Without history this builds up over ~20 trading days on its own — paste past data below to make it useful immediately instead. One line per day: <code>YYYY-MM-DD,high,low</code>
+    </div>
+    <div class="field">
+      <textarea id="adr-backfill-input" placeholder="2026-06-02,24120,24010&#10;2026-06-03,24205,24080&#10;..." style="min-height:100px;font-family:var(--mono);font-size:11px;"></textarea>
+    </div>
+    <button class="btn btn-outline" onclick="backfillDailyRanges()">Import Range History</button>
   </div>
 
   <div class="card">
@@ -2593,6 +2636,7 @@ let appState = {
   dayPnl: 0,
   trades: [],
   premarket: {},
+  dailyRanges: [],
   dailySessions: [],
   psychScores: {},
   confluenceScore: 0,
@@ -4011,6 +4055,19 @@ function savePostMarket() {
   const today = getTodayStr();
   const idx = appState.dailySessions.findIndex(s => s.date === today);
   if (idx >= 0) appState.dailySessions[idx].postMarket = pm;
+
+  // Roll today's realized range into the ADR history — uses whatever is
+  // currently in the 9:45 High/Low fields, so update them before end of day
+  // if the range extended further after the morning check.
+  const high = parseFloat(document.getElementById('mc-high')?.value);
+  const low = parseFloat(document.getElementById('mc-low')?.value);
+  if (!isNaN(high) && !isNaN(low) && high > low) {
+    appState.dailyRanges = (appState.dailyRanges || []).filter(d => d.date !== today);
+    appState.dailyRanges.push({ date: today, range: high - low });
+    appState.dailyRanges.sort((a, b) => a.date.localeCompare(b.date));
+    if (appState.dailyRanges.length > 20) appState.dailyRanges = appState.dailyRanges.slice(-20);
+  }
+
   saveData();
   syncSessionToSheets();
   closeModal('modal-postmarket');
@@ -4064,6 +4121,38 @@ function exportCSV(type) {
 // ═══════════════════════════════════════════════════
 // HISTORICAL IMPORT — backfill from broker tradebook
 // ═══════════════════════════════════════════════════
+function backfillDailyRanges() {
+  const raw = document.getElementById('adr-backfill-input').value.trim();
+  if (!raw) { showToast('Paste some rows first — one line per day.'); return; }
+
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const parsed = [];
+  const errors = [];
+  lines.forEach((line, i) => {
+    const parts = line.split(',').map(p => p.trim());
+    if (parts.length !== 3) { errors.push(i + 1); return; }
+    const [date, highStr, lowStr] = parts;
+    const high = parseFloat(highStr), low = parseFloat(lowStr);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(high) || isNaN(low) || high <= low) { errors.push(i + 1); return; }
+    parsed.push({ date, range: high - low });
+  });
+
+  if (!parsed.length) { showToast(`Couldn't parse any rows. Check the format: YYYY-MM-DD,high,low`); return; }
+
+  let merged = (appState.dailyRanges || []).filter(d => !parsed.some(p => p.date === d.date));
+  merged = merged.concat(parsed);
+  merged.sort((a, b) => a.date.localeCompare(b.date));
+  if (merged.length > 20) merged = merged.slice(-20);
+  appState.dailyRanges = merged;
+  saveData();
+
+  const msg = errors.length
+    ? `Imported ${parsed.length} days, skipped ${errors.length} bad row(s): line ${errors.join(', ')}.`
+    : `Imported ${parsed.length} days of range history.`;
+  showToast(msg);
+  document.getElementById('adr-backfill-input').value = '';
+}
+
 function handleHistoricalFileSelect(input) {
   const file = input.files && input.files[0];
   if (!file) return;
@@ -4263,6 +4352,104 @@ function updateLotEnforcer() {
 // ═══════════════════════════════════════════════════
 // v5: DAY CLASSIFIER
 // ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════
+// DAY-TYPE SUGGESTION ENGINE (9:45 check)
+// ═══════════════════════════════════════════════════
+// appState.dailyRanges: rolling history of {date, range} used for ADR.
+// Populated by savePostMarket() going forward, or by pasting historical
+// data in Settings → Backfill Daily Range History.
+function computeADR() {
+  const hist = appState.dailyRanges || [];
+  if (!hist.length) return null;
+  const window = hist.slice(-20);
+  const avg = window.reduce((a, d) => a + d.range, 0) / window.length;
+  return { avg, n: window.length };
+}
+
+let lastSuggestedType = null;
+function suggestDayType() {
+  const eventFlag = document.getElementById('mc-event').checked;
+  const adrInfo = computeADR();
+  const statusEl = document.getElementById('adrStatus');
+  if (statusEl) {
+    statusEl.textContent = adrInfo
+      ? `ADR based on ${adrInfo.n} of 20 trading days · avg range ${Math.round(adrInfo.avg)} pts`
+      : 'No range history yet — backfill in Settings, or it builds automatically as you log each day.';
+  }
+
+  const box = document.getElementById('daytypeSuggestion');
+  const textEl = document.getElementById('daytypeSuggestionText');
+
+  if (eventFlag) {
+    lastSuggestedType = 'event';
+    textEl.innerHTML = `<strong style="color:var(--red);">Suggested: Event Day.</strong> Scheduled macro event flagged — this overrides price-based signals.`;
+    box.style.display = 'block';
+    return;
+  }
+
+  const high = parseFloat(document.getElementById('mc-high').value);
+  const low = parseFloat(document.getElementById('mc-low').value);
+  const poc = parseFloat(document.getElementById('mc-poc').value);
+  const pdh = parseFloat(document.getElementById('sd-pdh')?.value);
+  const pdl = parseFloat(document.getElementById('sd-pdl')?.value);
+  const pdVah = parseFloat(document.getElementById('sd-pdvah')?.value);
+  const pdVal = parseFloat(document.getElementById('sd-pdval')?.value);
+  const pdPoc = parseFloat(document.getElementById('sd-pdpoc')?.value);
+
+  if (isNaN(high) || isNaN(low)) {
+    textEl.innerHTML = `Enter today's high and low first — needs at least those two to suggest anything.`;
+    box.style.display = 'block';
+    lastSuggestedType = null;
+    return;
+  }
+
+  const range = high - low;
+  const brokePdhPdl = (!isNaN(pdh) && high > pdh) || (!isNaN(pdl) && low < pdl);
+  const insideVA = (!isNaN(pdVah) && !isNaN(pdVal)) ? (high <= pdVah && low >= pdVal) : null;
+  const pocMoved = (!isNaN(poc) && !isNaN(pdPoc)) ? Math.abs(poc - pdPoc) > (0.0015 * poc) : null;
+
+  const reasons = [];
+  let suggestion = 'moderate';
+
+  if (adrInfo && adrInfo.n >= 5) {
+    const ratio = range / adrInfo.avg;
+    reasons.push(`Range so far is ${ratio.toFixed(2)}x your ${adrInfo.n}-day ADR (${Math.round(adrInfo.avg)} pts)`);
+    if (ratio >= 1.15 && brokePdhPdl && insideVA === false) {
+      suggestion = 'trend';
+      reasons.push('broke and held beyond yesterday\'s PDH/PDL', 'price is outside yesterday\'s value area');
+    } else if (ratio <= 0.7 && insideVA !== false && pocMoved !== true) {
+      suggestion = 'consolidation';
+      reasons.push('still inside yesterday\'s value area', 'POC has not moved meaningfully');
+    } else {
+      suggestion = 'moderate';
+      reasons.push('mixed signals — some movement, but not clean enough for Trend or Consolidation');
+    }
+  } else {
+    reasons.push(adrInfo ? `Only ${adrInfo.n} days of range history — using structure only, not range comparison yet` : 'No range history yet — using structure only');
+    if (brokePdhPdl && insideVA === false) {
+      suggestion = 'trend';
+      reasons.push('broke and held beyond yesterday\'s PDH/PDL');
+    } else if (insideVA === true && pocMoved !== true) {
+      suggestion = 'consolidation';
+      reasons.push('still inside yesterday\'s value area, POC hasn\'t moved');
+    } else {
+      suggestion = 'moderate';
+    }
+  }
+
+  lastSuggestedType = suggestion;
+  const icons = { trend:'📈 Trend Day', moderate:'〰️ Moderate Day', consolidation:'⬜ Consolidation Day' };
+  textEl.innerHTML = `<strong style="color:var(--gold);">Suggested: ${icons[suggestion]}.</strong> ${reasons.join(' · ')}.`;
+  box.style.display = 'block';
+}
+
+function confirmSuggestedDayType() {
+  if (!lastSuggestedType) return;
+  setDayType(lastSuggestedType);
+  document.getElementById('daytypeSuggestion').style.display = 'none';
+  showToast(`Day classified as ${lastSuggestedType}.`);
+}
+
 const DAY_RULES = {
   trend:        'All 3 setups permitted · Full grade sizing · Let Leg 2 run · Target contribution: ₹60–80K',
   moderate:     'Max 2 setups · A and A+ only · No B setups · Book Leg 2 earlier at 60–70 pts',
