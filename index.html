@@ -622,6 +622,15 @@
   <!-- 9:45 MARKET CHECK -->
   <div class="card">
     <div class="card-title">9:45 Market Check <span style="color:var(--text-muted);font-size:9px;">— feeds the day-type suggestion below</span></div>
+
+    <div id="adrHeader" style="display:flex;justify-content:space-between;align-items:center;background:var(--surface2);border-radius:10px;padding:10px 12px;margin-bottom:12px;">
+      <div>
+        <div style="font-size:9px;color:var(--text-muted);letter-spacing:0.5px;text-transform:uppercase;">20-Day ADR</div>
+        <div id="adrHeaderValue" style="font-family:var(--mono);font-size:15px;color:var(--gold);margin-top:2px;">—</div>
+      </div>
+      <div id="compressionFlag" style="font-size:10px;color:var(--text-dim);text-align:right;max-width:55%;"></div>
+    </div>
+
     <div class="toggle-row">
       <span class="toggle-label">Scheduled macro event today?</span>
       <label class="toggle">
@@ -632,17 +641,29 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="field">
         <label>Today's High (so far)</label>
-        <input type="number" id="mc-high" placeholder="24080">
+        <input type="number" id="mc-high" placeholder="24080" oninput="updateLiveRange()">
       </div>
       <div class="field">
         <label>Today's Low (so far)</label>
-        <input type="number" id="mc-low" placeholder="24010">
+        <input type="number" id="mc-low" placeholder="24010" oninput="updateLiveRange()">
       </div>
       <div class="field" style="grid-column:1/-1;">
         <label>Today's POC (so far)</label>
         <input type="number" id="mc-poc" placeholder="24045">
       </div>
     </div>
+
+    <div id="liveRangeBox" style="display:none;margin-top:4px;margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:4px;">
+        <span id="liveRangeLabel"></span>
+        <span id="liveRangePct" style="font-family:var(--mono);"></span>
+      </div>
+      <div style="height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;">
+        <div id="liveRangeBar" style="height:100%;width:0%;background:var(--gold);transition:width 0.3s;"></div>
+      </div>
+      <div id="liveRangeFlag" style="font-size:10px;margin-top:4px;"></div>
+    </div>
+
     <button class="btn btn-outline" onclick="suggestDayType()">Suggest Day Type →</button>
     <div id="daytypeSuggestion" style="display:none;margin-top:10px;padding:10px;background:var(--gold-glow);border:1px solid var(--gold-dim);border-radius:10px;">
       <div id="daytypeSuggestionText" style="font-size:12px;color:var(--text-dim);line-height:1.6;margin-bottom:8px;"></div>
@@ -1395,6 +1416,20 @@
     </div>
   </div>
 
+  <!-- ADR & RANGE ANALYSIS -->
+  <div class="card">
+    <div class="card-title">ADR &amp; Range Analysis</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--surface2);border-radius:10px;padding:10px 12px;margin-bottom:12px;">
+      <div>
+        <div style="font-size:9px;color:var(--text-muted);letter-spacing:0.5px;text-transform:uppercase;">20-Day ADR</div>
+        <div id="adrAnalyticsValue" style="font-family:var(--mono);font-size:15px;color:var(--gold);margin-top:2px;">—</div>
+      </div>
+    </div>
+    <div style="font-size:11px;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-muted);margin:6px 0 8px;">Win rate by range-at-entry (vs ADR)</div>
+    <div id="rangeRatioBreakdown" style="font-size:12px;color:var(--text-dim);">Not enough trades logged with a range-ratio yet — this fills in as you log trades going forward (each trade now captures today's range-so-far vs ADR at the moment you log it).</div>
+    <div id="vixAdrDivergence" style="font-size:11px;color:var(--text-dim);margin-top:12px;padding-top:12px;border-top:1px solid var(--border);"></div>
+  </div>
+
   <!-- HISTORICAL PERFORMANCE (backfilled trades) -->
   <div class="card" id="historicalCard" style="display:none;">
     <div class="card-title">Historical Performance <span style="font-size:11px;color:var(--text-muted);font-weight:400;">(pre-Vayu backfill)</span></div>
@@ -1653,9 +1688,10 @@
     <div class="field">
       <label>Direction</label>
       <div class="pill-row" id="te-dir">
-        <div class="pill" onclick="togglePill(this,'te-dir')">Long (CE Buy)</div>
-        <div class="pill" onclick="togglePill(this,'te-dir')">Short (PE Buy)</div>
+        <div class="pill" onclick="togglePill(this,'te-dir');updateTeAdrHint()">Long (CE Buy)</div>
+        <div class="pill" onclick="togglePill(this,'te-dir');updateTeAdrHint()">Short (PE Buy)</div>
       </div>
+      <div id="teAdrHint" style="font-size:11px;color:var(--text-dim);margin-top:8px;line-height:1.5;"></div>
     </div>
 
     <div class="field">
@@ -1984,8 +2020,10 @@ const SHEET_SETTINGS = 'Settings';
 const SHEET_PREMARKET = 'PreMarket';
 const SHEET_RANGES = 'DailyRanges';
 const RANGE_HEADERS = ['Date','High','Low','Range'];
+const SHEET_VIXHIST = 'VixHistory';
+const VIXHIST_HEADERS = ['Date','VixBand'];
 
-const TRADE_HEADERS = ['ID','Date','Time','Direction','Grade','Setup','Outcome','EntryPremium','ExitPremium','SLPremium','Target1Premium','Target2Premium','Lots','PnL','RValue','VIX','SessionState','RedViolation','ReentryAllowed','Reentry_Entry','Reentry_Exit','Reentry_Lots','Reentry_Outcome','Reentry_PnL','Notes','VixAtEntry'];
+const TRADE_HEADERS = ['ID','Date','Time','Direction','Grade','Setup','Outcome','EntryPremium','ExitPremium','SLPremium','Target1Premium','Target2Premium','Lots','PnL','RValue','VIX','SessionState','RedViolation','ReentryAllowed','Reentry_Entry','Reentry_Exit','Reentry_Lots','Reentry_Outcome','Reentry_PnL','Notes','VixAtEntry','RangeRatioAtEntry'];
 const SESSION_HEADERS = ['Date','State','VIX','TradeCount','DayPnL','ConsecutiveLosses','PostMarket_Integration','PostMarket_Missed','PostMarket_Tomorrow'];
 const SETTINGS_HEADERS = ['Key','Value'];
 const PREMARKET_HEADERS = ['Date','BodyState','EmotionalWeather','ReadinessScore','PsychicHygiene_EnergyCleared','PsychicHygiene_WitnessAnchor','PsychicHygiene_RecognitionHunger','PsychicHygiene_Self2Accessible','PsychicHygiene_NoStressBleed','PDClose_Context','HTFBias','KeyLevels','Scenarios','Sankalpa','PDH','PDL','PrevDayClose','PreOpen','Gap','GapType','OpeningBias','BiasReason','PD_VAH','PD_VAL','PD_POC','EPD_VAH','EPD_VAL','EPD_POC','PW_VAH','PW_VAL','PW_POC','CW_VAH','CW_VAL','CW_POC','EPW_VAH','EPW_VAL','EPW_POC','YdayMarketReview'];
@@ -2155,7 +2193,7 @@ async function initSheetStructure() {
   if (!meta) return;
 
   const existing = (meta.sheets || []).map(s => s.properties.title);
-  const needed = [SHEET_TRADES, SHEET_SESSIONS, SHEET_SETTINGS, SHEET_PREMARKET, SHEET_RANGES];
+  const needed = [SHEET_TRADES, SHEET_SESSIONS, SHEET_SETTINGS, SHEET_PREMARKET, SHEET_RANGES, SHEET_VIXHIST];
   const toCreate = needed.filter(n => !existing.includes(n));
 
   if (toCreate.length > 0) {
@@ -2171,7 +2209,8 @@ async function initSheetStructure() {
     { range: `${SHEET_SESSIONS}!A1`, values: [SESSION_HEADERS] },
     { range: `${SHEET_SETTINGS}!A1`, values: [SETTINGS_HEADERS] },
     { range: `${SHEET_PREMARKET}!A1`, values: [PREMARKET_HEADERS] },
-    { range: `${SHEET_RANGES}!A1`, values: [RANGE_HEADERS] }
+    { range: `${SHEET_RANGES}!A1`, values: [RANGE_HEADERS] },
+    { range: `${SHEET_VIXHIST}!A1`, values: [VIXHIST_HEADERS] }
   ];
 
   await sheetsRequest('POST', '/values:batchUpdate', {
@@ -2207,7 +2246,7 @@ async function syncAllTradesToSheets() {
     trade.notes || ''
   ]));
 
-  await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:Z:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+  await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:AA:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
     values: rows
   });
 
@@ -2217,17 +2256,18 @@ async function loadFromSheets() {
   updateSyncUI('pending', 'Loading…');
 
   const ranges = [
-    `${SHEET_TRADES}!A2:Z`,
+    `${SHEET_TRADES}!A2:AA`,
     `${SHEET_SESSIONS}!A2:I`,
     `${SHEET_SETTINGS}!A2:B`,
     `${SHEET_PREMARKET}!A2:AL`,
-    `${SHEET_RANGES}!A2:D`
+    `${SHEET_RANGES}!A2:D`,
+    `${SHEET_VIXHIST}!A2:B`
   ];
 
   const res = await sheetsRequest('GET', `/values:batchGet?ranges=${ranges.map(encodeURIComponent).join('&ranges=')}`);
   if (!res) return;
 
-  const [tradesData, sessionsData, settingsData, premarketData, rangesData] = res.valueRanges || [];
+  const [tradesData, sessionsData, settingsData, premarketData, rangesData, vixHistData] = res.valueRanges || [];
 
   // Parse daily range history
   const rangeRows = (rangesData && rangesData.values) || [];
@@ -2236,6 +2276,17 @@ async function loadFromSheets() {
       .filter(r => r[0] && r[3])
       .map(r => ({ date: r[0], high: parseFloat(r[1]) || null, low: parseFloat(r[2]) || null, range: parseFloat(r[3]) }))
       .filter(d => !isNaN(d.range))
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-20);
+  }
+
+  // Parse VIX band history
+  const vixHistRows = (vixHistData && vixHistData.values) || [];
+  if (vixHistRows.length) {
+    appState.vixHistory = vixHistRows
+      .filter(r => r[0] && r[1])
+      .map(r => ({ date: r[0], band: parseInt(r[1]) }))
+      .filter(d => !isNaN(d.band))
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(-20);
   }
@@ -2405,7 +2456,7 @@ async function loadFromSheets() {
       trade.notes || ''
     ]));
     // Clear data rows and rewrite with correct P&L
-    await sheetsRequest('PUT', `/values/${SHEET_TRADES}!A2:Z?valueInputOption=RAW`, {
+    await sheetsRequest('PUT', `/values/${SHEET_TRADES}!A2:AA?valueInputOption=RAW`, {
       values: allRows
     });
     showToast('P&L corrected in Google Sheets ✓');
@@ -2425,6 +2476,7 @@ async function loadFromSheets() {
   updateRiskTable();
   updateGoogleAuthUI(true);
   updateSyncUI('ok', 'Synced');
+  renderAdrHeader();
   showToast('Data loaded from Google Sheets');
 
   // Push any local trades that aren't in sheets yet
@@ -2450,7 +2502,8 @@ function tradeToRow(trade) {
     trade.reentry ? trade.reentry.outcome||'' : '',
     trade.reentry ? trade.reentry.pnl||'' : '',
     trade.notes || '',
-    trade.vixAtEntryLabel || trade.vixAtEntry || ''
+    trade.vixAtEntryLabel || trade.vixAtEntry || '',
+    (trade.rangeRatioAtEntry != null) ? trade.rangeRatioAtEntry + '%' : ''
   ];
 }
 
@@ -2459,7 +2512,7 @@ async function syncTradeToSheets(trade) {
   const row = tradeToRow(trade);
 
   // 25 columns: A through Y
-  const colRange = 'Z';
+  const colRange = 'AA';
 
   // Check if this trade ID already exists — compare as string since Sheets returns strings
   const existing = await sheetsRequest('GET', `/values/${SHEET_TRADES}!A:A`);
@@ -2497,7 +2550,7 @@ async function syncBulkTradesToSheets(trades, onProgress) {
   const CHUNK = 200;
   for (let i = 0; i < newRows.length; i += CHUNK) {
     const chunk = newRows.slice(i, i + CHUNK);
-    await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:Z:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+    await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:AA:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
       values: chunk
     });
     if (onProgress) onProgress(Math.min(i + CHUNK, newRows.length), newRows.length);
@@ -2555,6 +2608,17 @@ async function syncDailyRangesToSheets() {
   if (!hist.length) return;
   const rows = hist.map(d => [d.date, d.high ?? '', d.low ?? '', d.range]);
   await sheetsRequest('PUT', `/values/${SHEET_RANGES}!A2:D${hist.length + 1}?valueInputOption=RAW`, {
+    values: rows
+  });
+}
+
+async function syncVixHistoryToSheets() {
+  if (!syncEnabled) return;
+  const hist = appState.vixHistory || [];
+  await sheetsRequest('POST', `/values/${SHEET_VIXHIST}!A2:B30:clear`, {});
+  if (!hist.length) return;
+  const rows = hist.map(d => [d.date, d.band]);
+  await sheetsRequest('PUT', `/values/${SHEET_VIXHIST}!A2:B${hist.length + 1}?valueInputOption=RAW`, {
     values: rows
   });
 }
@@ -2665,6 +2729,7 @@ let appState = {
   trades: [],
   premarket: {},
   dailyRanges: [],
+  vixHistory: [],
   dailySessions: [],
   psychScores: {},
   confluenceScore: 0,
@@ -2744,6 +2809,7 @@ function init() {
   if (appState.dayType) setDayType(appState.dayType, true);
   if (appState.vixLevel) setVixExt(appState.vixLevel, true);
   else setVixExt('v2', true);
+  renderAdrHeader();
   setInterval(function() { updateSessionWindows(); }, 30000);
 
   // v5: restore any unsaved drafts
@@ -3200,6 +3266,13 @@ function saveTrade() {
     vix: appState.vix,
     vixAtEntry: teVixSelected || appState.vixLevel || '',
     vixAtEntryLabel: (VIX_CONFIG[teVixSelected || appState.vixLevel] || {}).label || '',
+    rangeRatioAtEntry: (() => {
+      const h = parseFloat(document.getElementById('mc-high')?.value);
+      const l = parseFloat(document.getElementById('mc-low')?.value);
+      const adrInfo = computeADR();
+      if (isNaN(h) || isNaN(l) || h <= l || !adrInfo) return null;
+      return Math.round(((h - l) / adrInfo.avg) * 100);
+    })(),
     redStateViolation: violationEl ? violationEl.textContent.includes('RED') : false
   };
 
@@ -3606,6 +3679,7 @@ function deleteTrade(id) {
 function renderAnalytics() {
   const trades = appState.trades.filter(t => !t.historical);
   renderHistoricalAnalysis();
+  renderRangeRatioBreakdown(trades);
   if (!trades.length) return;
 
   const wins = trades.filter(t => t.outcome === 'Win');
@@ -3697,6 +3771,36 @@ function renderAnalytics() {
 }
 
 let histChartInstance = null;
+// Win rate / expectancy bucketed by how much of ADR was already consumed
+// at the moment each trade was logged. Needs live-logged trades with
+// rangeRatioAtEntry set — historical backfilled trades don't have this.
+function renderRangeRatioBreakdown(liveTrades) {
+  const el = document.getElementById('rangeRatioBreakdown');
+  if (!el) return;
+  const tagged = (liveTrades || []).filter(t => t.rangeRatioAtEntry != null);
+  if (tagged.length < 5) {
+    el.textContent = `Not enough trades logged with a range-ratio yet (${tagged.length} so far) — this fills in as you keep logging. Each trade now captures today's range-so-far vs ADR at the moment you log it.`;
+    return;
+  }
+  const buckets = [
+    { label: '<50% of ADR', min: -Infinity, max: 50 },
+    { label: '50–100% of ADR', min: 50, max: 100 },
+    { label: '100–150% of ADR', min: 100, max: 150 },
+    { label: '>150% of ADR', min: 150, max: Infinity }
+  ];
+  el.innerHTML = buckets.map(b => {
+    const bt = tagged.filter(t => t.rangeRatioAtEntry >= b.min && t.rangeRatioAtEntry < b.max);
+    if (!bt.length) return '';
+    const wins = bt.filter(t => t.outcome === 'Win').length;
+    const wr = Math.round(wins / bt.length * 100);
+    const avgPnl = bt.reduce((a,t) => a + t.pnl, 0) / bt.length;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+      <span>${b.label} <span style="color:var(--text-muted);font-size:11px;">(${bt.length} · ${wr}% WR)</span></span>
+      <span style="font-family:var(--mono);color:${avgPnl>=0?'var(--green)':'var(--red)'};">${avgPnl>=0?'+':'−'}₹${Math.round(Math.abs(avgPnl)).toLocaleString('en-IN')}</span>
+    </div>`;
+  }).join('') || 'No trades in any bucket yet.';
+}
+
 function renderHistoricalAnalysis() {
   const trades = appState.trades.filter(t => t.historical);
   const card = document.getElementById('historicalCard');
@@ -4082,6 +4186,7 @@ function savePreMarket() {
     if (appState.dailyRanges.length > 20) appState.dailyRanges = appState.dailyRanges.slice(-20);
     saveData();
     syncDailyRangesToSheets();
+    renderAdrHeader();
   }
 
   showToast('Pre-market saved & synced.');
@@ -4177,6 +4282,7 @@ function backfillDailyRanges() {
   appState.dailyRanges = merged;
   saveData();
   syncDailyRangesToSheets();
+  renderAdrHeader();
 
   const msg = errors.length
     ? `Imported ${parsed.length} days, skipped ${errors.length} bad row(s): line ${errors.join(', ')}.`
@@ -4282,6 +4388,7 @@ function openTradeEntryModal() {
   openModal('modal-trade-entry');
   const level = appState.vixLevel || 'v2';
   setTeVix(level, true);
+  updateTeAdrHint();
 }
 
 function setTeVix(level, silent) {
@@ -4339,7 +4446,16 @@ function setVixExt(level, silent) {
   if (el) el.classList.add('sel-' + level);
   refreshVixBanner();
   updateLotEnforcer();
-  if (!silent) { updateSessionDisplay(); saveData(); }
+  if (!silent) {
+    updateSessionDisplay();
+    const today = getTodayStr();
+    appState.vixHistory = (appState.vixHistory || []).filter(d => d.date !== today);
+    appState.vixHistory.push({ date: today, band: parseInt(level.replace('v','')) || 2 });
+    appState.vixHistory.sort((a, b) => a.date.localeCompare(b.date));
+    if (appState.vixHistory.length > 20) appState.vixHistory = appState.vixHistory.slice(-20);
+    saveData();
+    syncVixHistoryToSheets();
+  }
 }
 
 function refreshVixBanner() {
@@ -4387,15 +4503,149 @@ function updateLotEnforcer() {
 // ═══════════════════════════════════════════════════
 // DAY-TYPE SUGGESTION ENGINE (9:45 check)
 // ═══════════════════════════════════════════════════
-// appState.dailyRanges: rolling history of {date, range} used for ADR.
-// Populated by savePostMarket() going forward, or by pasting historical
-// data in Settings → Backfill Daily Range History.
+// appState.dailyRanges: rolling history of {date, high, low, range} used
+// for ADR. Populated automatically each morning from Pre-Market PDH/PDL,
+// or by pasting historical data in Settings → Backfill Daily Range History.
 function computeADR() {
   const hist = appState.dailyRanges || [];
   if (!hist.length) return null;
   const window = hist.slice(-20);
   const avg = window.reduce((a, d) => a + d.range, 0) / window.length;
   return { avg, n: window.length };
+}
+
+// How many of the most recent days were "compressed" (range < 0.7x ADR) —
+// a stretch of these has historically tended to precede an expansion day.
+function getCompressionStreak() {
+  const hist = appState.dailyRanges || [];
+  const adrInfo = computeADR();
+  if (!adrInfo || hist.length < 3) return 0;
+  let streak = 0;
+  for (let i = hist.length - 1; i >= 0; i--) {
+    if (hist[i].range < 0.7 * adrInfo.avg) streak++;
+    else break;
+  }
+  return streak;
+}
+
+// Persistent ADR readout — Session tab header and Analytics tab, refreshed
+// on load, after Sheets sync, and after any range-history change.
+function renderAdrHeader() {
+  const adrInfo = computeADR();
+  const valueEl = document.getElementById('adrHeaderValue');
+  const flagEl = document.getElementById('compressionFlag');
+  if (valueEl) {
+    valueEl.textContent = adrInfo ? `${Math.round(adrInfo.avg)} pts` : 'Not enough data';
+    valueEl.title = adrInfo ? `Based on last ${adrInfo.n} trading days` : 'Backfill in Settings, or it builds automatically';
+  }
+  if (flagEl) {
+    const streak = getCompressionStreak();
+    if (streak >= 2) {
+      flagEl.innerHTML = `<span style="color:var(--blue);">⬜ ${streak} days compressed</span> — often precedes expansion`;
+    } else {
+      flagEl.textContent = adrInfo ? `${adrInfo.n} of 20 days logged` : '';
+    }
+  }
+  const analyticsEl = document.getElementById('adrAnalyticsValue');
+  if (analyticsEl) analyticsEl.textContent = adrInfo ? `${Math.round(adrInfo.avg)} pts (last ${adrInfo.n}d)` : 'Not enough data yet';
+  renderVixAdrDivergence();
+}
+
+// Flags when realized range (ADR trend) and your logged VIX band are
+// drifting in opposite directions — a sign one of your two volatility
+// reads may be lagging the other. Compares the most recent 5 days against
+// the 5 before that, on whichever history (ranges/VIX) has enough data.
+function renderVixAdrDivergence() {
+  const el = document.getElementById('vixAdrDivergence');
+  if (!el) return;
+
+  const ranges = appState.dailyRanges || [];
+  const vix = appState.vixHistory || [];
+  if (ranges.length < 10 || vix.length < 10) {
+    el.textContent = `VIX vs range divergence check needs at least 10 days of both range and VIX history (currently ${ranges.length} range days, ${vix.length} VIX days logged).`;
+    return;
+  }
+
+  const recentRanges = ranges.slice(-5), priorRanges = ranges.slice(-10, -5);
+  const recentAvgRange = recentRanges.reduce((a,d)=>a+d.range,0) / recentRanges.length;
+  const priorAvgRange = priorRanges.reduce((a,d)=>a+d.range,0) / priorRanges.length;
+  const rangeTrend = recentAvgRange > priorAvgRange * 1.1 ? 'up' : (recentAvgRange < priorAvgRange * 0.9 ? 'down' : 'flat');
+
+  const recentVix = vix.slice(-5), priorVix = vix.slice(-10, -5);
+  const recentAvgVix = recentVix.reduce((a,d)=>a+d.band,0) / recentVix.length;
+  const priorAvgVix = priorVix.reduce((a,d)=>a+d.band,0) / priorVix.length;
+  const vixTrend = recentAvgVix > priorAvgVix + 0.3 ? 'up' : (recentAvgVix < priorAvgVix - 0.3 ? 'down' : 'flat');
+
+  if ((rangeTrend === 'up' && vixTrend === 'down') || (rangeTrend === 'down' && vixTrend === 'up')) {
+    el.innerHTML = `<span style="color:var(--yellow);">⚠ Divergence:</span> realized range is trending ${rangeTrend} while your logged VIX band is trending ${vixTrend}. One of the two may be lagging the other right now — worth a manual gut-check before trusting either in isolation.`;
+  } else {
+    el.textContent = `Range (${rangeTrend}) and VIX band (${vixTrend}) are broadly in agreement — no divergence flagged.`;
+  }
+}
+
+// Live "room remaining" readout — updates as you type today's high/low,
+// independent of whatever the 9:45 day-type classification ends up being.
+// Direction-aware ADR context shown in the Log Trade modal. Note: ADR is
+// measured in underlying index points, not option premium — there's no
+// reliable point-to-premium conversion without delta, which isn't tracked
+// here, so this is a contextual reminder rather than a calculated stop.
+function updateTeAdrHint() {
+  const hintEl = document.getElementById('teAdrHint');
+  if (!hintEl) return;
+  const dirEl = document.querySelector('#te-dir .pill.sel');
+  const dir = dirEl ? dirEl.textContent : '';
+  const high = parseFloat(document.getElementById('mc-high')?.value);
+  const low = parseFloat(document.getElementById('mc-low')?.value);
+  const adrInfo = computeADR();
+
+  let rangeNote = '';
+  if (!isNaN(high) && !isNaN(low) && high > low && adrInfo) {
+    const pct = Math.round(((high - low) / adrInfo.avg) * 100);
+    rangeNote = `Today's range is ${pct}% of ADR so far. `;
+  }
+
+  if (dir.includes('CE')) {
+    hintEl.textContent = rangeNote + 'CE: your data shows wins pay less than PE\'s unless given room for a retracement — size the stop from structure, not a fixed point value, and don\'t manage it on a PE-length attention span.';
+  } else if (dir.includes('PE')) {
+    hintEl.textContent = rangeNote + 'PE: fast, decisive management has been working — no need to widen this one out.';
+  } else {
+    hintEl.textContent = rangeNote;
+  }
+}
+
+function updateLiveRange() {
+  const high = parseFloat(document.getElementById('mc-high').value);
+  const low = parseFloat(document.getElementById('mc-low').value);
+  const box = document.getElementById('liveRangeBox');
+  if (isNaN(high) || isNaN(low) || high <= low) { box.style.display = 'none'; return; }
+
+  const range = high - low;
+  const adrInfo = computeADR();
+  box.style.display = 'block';
+  document.getElementById('liveRangeLabel').textContent = `Range so far: ${Math.round(range)} pts`;
+
+  const bar = document.getElementById('liveRangeBar');
+  const flagEl = document.getElementById('liveRangeFlag');
+
+  if (!adrInfo) {
+    document.getElementById('liveRangePct').textContent = 'No ADR yet';
+    bar.style.width = '0%';
+    flagEl.textContent = '';
+    return;
+  }
+
+  const pct = (range / adrInfo.avg) * 100;
+  document.getElementById('liveRangePct').textContent = `${Math.round(pct)}% of ADR`;
+  bar.style.width = Math.min(pct, 100) + '%';
+  bar.style.background = pct >= 100 ? 'var(--green)' : (pct >= 70 ? 'var(--gold)' : 'var(--text-muted)');
+
+  if (pct >= 100) {
+    flagEl.innerHTML = `<span style="color:var(--green);">Room likely used up for a normal day — treat fresh continuation after this point with extra scrutiny, regardless of the 9:45 classification.</span>`;
+  } else if (pct <= 40) {
+    flagEl.innerHTML = `<span style="color:var(--text-dim);">Still well within normal range — plenty of room either way.</span>`;
+  } else {
+    flagEl.textContent = '';
+  }
 }
 
 let lastSuggestedType = null;
