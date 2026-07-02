@@ -2360,20 +2360,13 @@ async function loadFromSheets() {
       historical: r[27] === 'YES'
     }));
 
-    // Recalculate P&L with correct formula — but never touch historical
-    // (backfilled) trades, whose real P&L was computed from actual broker
-    // prices and lot sizes, not this fixed-65 formula.
-    appState.trades.forEach(t => {
-      if (t.entry && t.exit && t.lots && !isHistoricalTrade(t)) {
-        const correctPnl = (t.exit - t.entry) * t.lots * 65;
-        const reentryPnl = (t.reentry && t.reentry.entry && t.reentry.exit)
-          ? (t.reentry.exit - t.reentry.entry) * (t.reentry.lots || 1) * 65
-          : 0;
-        t.pnl = correctPnl + reentryPnl;
-        t.mainPnl = correctPnl;
-        if (t.reentry) t.reentry.pnl = reentryPnl;
-      }
-    });
+    // NOTE: this used to unconditionally recompute every live trade's P&L
+    // as (exit-entry)*lots*65 on every single load, discarding whatever
+    // was actually stored — even correctly entered or manually adjusted
+    // values. That's now been removed: the P&L saved at trade-entry time
+    // (or manually corrected) is trusted as-is. If a specific trade's P&L
+    // is ever genuinely wrong, re-open and re-save it from the trade
+    // detail view rather than relying on a silent background formula.
   }
 
   // Parse sessions
@@ -2448,57 +2441,19 @@ async function loadFromSheets() {
     setTimeout(calcSessionBias, 100);
   }
 
-  // CRITICAL: Recalculate all P&L after loading from Sheets
-  // Both CE Buy and PE Buy = always (exit - entry) × lots × 65
-  let needsCorrection = false;
-  appState.trades.forEach(t => {
-    if (t.entry && t.exit && t.lots) {
-      const correct = (t.exit - t.entry) * t.lots * 65;
-      const reCorrect = (t.reentry && t.reentry.entry && t.reentry.exit)
-        ? (t.reentry.exit - t.reentry.entry) * (t.reentry.lots || 1) * 65 : 0;
-      const correctTotal = correct + reCorrect;
-      if (Math.abs(correctTotal - t.pnl) > 0.01) {
-        t.pnl = correctTotal;
-        t.mainPnl = correct;
-        if (t.reentry) t.reentry.pnl = reCorrect;
-        needsCorrection = true;
-      }
-    }
-  });
-
-  // Recalculate dayPnl for today from corrected trades
+  // NOTE: this used to unconditionally recompute every trade's P&L (live
+  // AND historical) as (exit-entry)*lots*65, then write the "corrected"
+  // values permanently back into the Sheet using an outdated column
+  // format that didn't include VixAtEntry, RangeRatioAtEntry, or the
+  // Historical flag — silently stripping those from every row on every
+  // load. This is why data kept getting corrupted. Removed entirely:
+  // stored P&L is trusted, and nothing gets rewritten to Sheets here.
   const today = getTodayStr();
-  const todayCorrectPnl = appState.trades
+  appState.dayPnl = appState.trades
     .filter(t => t.date === today)
     .reduce((a, t) => a + t.pnl, 0);
-  appState.dayPnl = todayCorrectPnl;
   const todaySession = appState.dailySessions.find(s => s.date === today);
-  if (todaySession) todaySession.dayPnl = todayCorrectPnl;
-
-  // If any trade had wrong P&L, overwrite ALL trades in Sheet with correct values
-  if (needsCorrection) {
-    const allRows = [...appState.trades].reverse().map(trade => ([
-      trade.id, trade.date, trade.time, trade.direction, trade.grade,
-      trade.setup, trade.outcome,
-      trade.entry, trade.exit, trade.stop,
-      trade.target1||'', trade.target2||'',
-      trade.lots, trade.pnl, trade.rValue,
-      trade.vix, trade.sessionState,
-      trade.redStateViolation ? 'YES' : 'NO',
-      trade.reentryAllowed ? 'YES' : 'NO',
-      trade.reentry ? trade.reentry.entry||'' : '',
-      trade.reentry ? trade.reentry.exit||'' : '',
-      trade.reentry ? trade.reentry.lots||'' : '',
-      trade.reentry ? trade.reentry.outcome||'' : '',
-      trade.reentry ? trade.reentry.pnl||'' : '',
-      trade.notes || ''
-    ]));
-    // Clear data rows and rewrite with correct P&L
-    await sheetsRequest('PUT', `/values/${SHEET_TRADES}!A2:AB?valueInputOption=RAW`, {
-      values: allRows
-    });
-    showToast('P&L corrected in Google Sheets ✓');
-  }
+  if (todaySession) todaySession.dayPnl = appState.dayPnl;
 
   // Update UI
   document.getElementById('cfg-capital').value = appState.settings.capital;
@@ -2867,42 +2822,20 @@ function loadData() {
       appState.dailyRanges = d.dailyRanges || [];
       appState.vixHistory = d.vixHistory || [];
 
-      // MIGRATION: Recalculate P&L for all trades using correct formula
-      // Both CE Buy (Long) and PE Buy (Short) are buys — always (exit - entry) × lots × 65
-      let migrated = false;
+      // NOTE: the automatic P&L recalculation that used to run here has
+      // been removed — it unconditionally overwrote every live trade's
+      // stored P&L with (exit-entry)*lots*65, which silently corrupted
+      // any trade where that formula didn't actually apply (partial
+      // fills, manual adjustments, non-premium entry/exit values, etc).
+      // Stored P&L is now trusted as-is. Day totals are still derived
+      // fresh from that trusted data — pure aggregation, not overwriting.
+      const byDay = {};
       appState.trades.forEach(t => {
-        if (t.entry && t.exit && t.lots && !isHistoricalTrade(t)) {
-          const correctPnl = (t.exit - t.entry) * t.lots * 65;
-          const reentryPnl = (t.reentry && t.reentry.entry && t.reentry.exit)
-            ? (t.reentry.exit - t.reentry.entry) * (t.reentry.lots || 1) * 65
-            : 0;
-          const correctTotal = correctPnl + reentryPnl;
-          if (Math.abs(correctTotal - t.pnl) > 0.01) {
-            t.pnl = correctTotal;
-            t.mainPnl = correctPnl;
-            if (t.reentry) t.reentry.pnl = reentryPnl;
-            migrated = true;
-          }
-        }
+        byDay[t.date] = (byDay[t.date] || 0) + t.pnl;
       });
-      if (migrated) {
-        // Recalculate dayPnl for all sessions from corrected trades
-        const byDay = {};
-        appState.trades.forEach(t => {
-          byDay[t.date] = (byDay[t.date] || 0) + t.pnl;
-        });
-        appState.dailySessions.forEach(s => {
-          if (byDay[s.date] !== undefined) s.dayPnl = byDay[s.date];
-        });
-        // Save corrected data
-        localStorage.setItem('vayu_data', JSON.stringify({
-          trades: appState.trades,
-          dailySessions: appState.dailySessions,
-          settings: appState.settings,
-          dailyRanges: appState.dailyRanges,
-          vixHistory: appState.vixHistory
-        }));
-      }
+      appState.dailySessions.forEach(s => {
+        if (byDay[s.date] !== undefined) s.dayPnl = byDay[s.date];
+      });
 
       // Load today's session if same day
       const today = getTodayStr();
@@ -2913,7 +2846,7 @@ function loadData() {
         appState.vixLevel = todaySess.vixLevel || 'v2';
         appState.dayType = todaySess.dayType || '';
         appState.tradeCount = todaySess.tradeCount || 0;
-        appState.dayPnl = byDay ? (byDay[today] || 0) : (todaySess.dayPnl || 0);
+        appState.dayPnl = byDay[today] || 0;
         appState.consecutiveLosses = todaySess.consecutiveLosses || 0;
       }
     }
@@ -3753,8 +3686,12 @@ function renderAnalytics() {
   document.getElementById('an-winrate').textContent = wr + '%';
   document.getElementById('an-expectancy').textContent = '₹' + Math.abs(expectancy).toLocaleString('en-IN');
   document.getElementById('an-total').textContent = trades.length;
-  document.getElementById('an-bestday').textContent = '+₹' + bestDay.toLocaleString('en-IN');
-  document.getElementById('an-worstday').textContent = '−₹' + Math.abs(worstDay).toLocaleString('en-IN');
+  const bestDayEl = document.getElementById('an-bestday');
+  bestDayEl.textContent = (bestDay >= 0 ? '+₹' : '−₹') + Math.abs(bestDay).toLocaleString('en-IN');
+  bestDayEl.className = 'av ' + (bestDay >= 0 ? 'positive' : 'negative');
+  const worstDayEl = document.getElementById('an-worstday');
+  worstDayEl.textContent = (worstDay >= 0 ? '+₹' : '−₹') + Math.abs(worstDay).toLocaleString('en-IN');
+  worstDayEl.className = 'av ' + (worstDay >= 0 ? 'positive' : 'negative');
   document.getElementById('an-pnl').textContent = (totalPnl >= 0 ? '+' : '−') + '₹' + Math.abs(totalPnl).toLocaleString('en-IN');
   document.getElementById('an-pnl').className = 'av ' + (totalPnl >= 0 ? 'positive' : 'negative');
 
