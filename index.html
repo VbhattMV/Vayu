@@ -2364,7 +2364,7 @@ async function loadFromSheets() {
     // (backfilled) trades, whose real P&L was computed from actual broker
     // prices and lot sizes, not this fixed-65 formula.
     appState.trades.forEach(t => {
-      if (t.entry && t.exit && t.lots && !t.historical) {
+      if (t.entry && t.exit && t.lots && !isHistoricalTrade(t)) {
         const correctPnl = (t.exit - t.entry) * t.lots * 65;
         const reentryPnl = (t.reentry && t.reentry.entry && t.reentry.exit)
           ? (t.reentry.exit - t.reentry.entry) * (t.reentry.lots || 1) * 65
@@ -2871,7 +2871,7 @@ function loadData() {
       // Both CE Buy (Long) and PE Buy (Short) are buys — always (exit - entry) × lots × 65
       let migrated = false;
       appState.trades.forEach(t => {
-        if (t.entry && t.exit && t.lots && !t.historical) {
+        if (t.entry && t.exit && t.lots && !isHistoricalTrade(t)) {
           const correctPnl = (t.exit - t.entry) * t.lots * 65;
           const reentryPnl = (t.reentry && t.reentry.entry && t.reentry.exit)
             ? (t.reentry.exit - t.reentry.entry) * (t.reentry.lots || 1) * 65
@@ -2953,6 +2953,14 @@ function saveData() {
       vixHistory: appState.vixHistory
     }));
   } catch(e) { console.log('Save error:', e); }
+}
+
+// Resilient historical-trade check — the boolean flag itself can be lost
+// if a Sheets round-trip ever regresses (it's happened once already), but
+// grade/setup text columns have never been dropped, so checking both
+// makes this classification survive even if the flag alone fails again.
+function isHistoricalTrade(t) {
+  return t.historical === true || t.grade === 'Historical';
 }
 
 function getTodayStr() {
@@ -3618,9 +3626,9 @@ function renderTradeList() {
   if (!list) return;
 
   let trades = appState.trades;
-  if (currentFilter === 'historical') trades = trades.filter(t => t.historical);
+  if (currentFilter === 'historical') trades = trades.filter(t => isHistoricalTrade(t));
   else {
-    trades = trades.filter(t => !t.historical);
+    trades = trades.filter(t => !isHistoricalTrade(t));
     if (currentFilter === 'win') trades = trades.filter(t => t.outcome === 'Win');
     else if (currentFilter === 'loss') trades = trades.filter(t => t.outcome === 'Loss');
     else if (currentFilter === 'A+') trades = trades.filter(t => t.grade === 'A+');
@@ -3722,7 +3730,7 @@ function deleteTrade(id) {
 // ANALYTICS
 // ═══════════════════════════════════════════════════
 function renderAnalytics() {
-  const trades = appState.trades.filter(t => !t.historical);
+  const trades = appState.trades.filter(t => !isHistoricalTrade(t));
   renderHistoricalAnalysis();
   renderRangeRatioBreakdown(trades);
   if (!trades.length) return;
@@ -3847,7 +3855,7 @@ function renderRangeRatioBreakdown(liveTrades) {
 }
 
 function renderHistoricalAnalysis() {
-  const trades = appState.trades.filter(t => t.historical);
+  const trades = appState.trades.filter(t => isHistoricalTrade(t));
   const card = document.getElementById('historicalCard');
   if (!card) return;
   if (!trades.length) { card.style.display = 'none'; return; }
@@ -4956,7 +4964,7 @@ function getWeekStart() {
 
 function updateCircuitBreakers() {
   const today = getTodayStr(), week = getWeekStart(), month = today.substring(0,7);
-  const sumLoss = (filter) => Math.min(0, appState.trades.filter(t => !t.historical && filter(t)).reduce((a,t) => a + t.pnl, 0));
+  const sumLoss = (filter) => Math.min(0, appState.trades.filter(t => !isHistoricalTrade(t) && filter(t)).reduce((a,t) => a + t.pnl, 0));
   const dayLoss   = sumLoss(t => t.date === today);
   const weekLoss  = sumLoss(t => t.date >= week);
   const monthLoss = sumLoss(t => t.date.startsWith(month));
@@ -5000,7 +5008,7 @@ function renderExpectancyTracker() {
   const el = document.getElementById('expectancyTracker');
   if (!el) return;
   const month = getTodayStr().substring(0,7);
-  const mt = appState.trades.filter(t => t.date.startsWith(month) && !t.historical);
+  const mt = appState.trades.filter(t => t.date.startsWith(month) && !isHistoricalTrade(t));
   if (!mt.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">No trades this month yet.</div>'; return; }
   const wins = mt.filter(t => t.outcome === 'Win');
   const losses = mt.filter(t => t.outcome === 'Loss');
@@ -5026,7 +5034,7 @@ function renderExpectancyTracker() {
 // ═══════════════════════════════════════════════════
 function openWeeklyReview() {
   const week = getWeekStart(), today = getTodayStr();
-  const wt = appState.trades.filter(t => t.date >= week && t.date <= today && !t.historical);
+  const wt = appState.trades.filter(t => t.date >= week && t.date <= today && !isHistoricalTrade(t));
   const el = document.getElementById('weeklyReviewData');
   if (!el) { openModal('modal-weekly-review'); return; }
   if (!wt.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;margin-bottom:12px;">No trades this week.</div>'; openModal('modal-weekly-review'); return; }
