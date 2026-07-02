@@ -1455,7 +1455,7 @@
   <div class="card">
     <div class="card-title">Backfill Daily Range History <span style="color:var(--text-muted);font-size:9px;font-weight:400;">— for ADR</span></div>
     <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">
-      The day-type suggestion compares today's range to your last 20 days' average range (ADR). Without history this builds up over ~20 trading days on its own — paste past data below to make it useful immediately instead. One line per day: <code>YYYY-MM-DD,high,low</code>
+      The day-type suggestion compares today's range to your last 20 days' average range (ADR). Going forward this fills itself in automatically from the PDH/PDL you already enter each morning in Pre-Market — no extra step needed. Paste past data below just to make it useful immediately instead of waiting ~20 trading days. One line per day: <code>YYYY-MM-DD,high,low</code>. Syncs to a new "DailyRanges" tab in your Sheet.
     </div>
     <div class="field">
       <textarea id="adr-backfill-input" placeholder="2026-06-02,24120,24010&#10;2026-06-03,24205,24080&#10;..." style="min-height:100px;font-family:var(--mono);font-size:11px;"></textarea>
@@ -1982,6 +1982,8 @@ const SHEET_TRADES = 'Trades';
 const SHEET_SESSIONS = 'Sessions';
 const SHEET_SETTINGS = 'Settings';
 const SHEET_PREMARKET = 'PreMarket';
+const SHEET_RANGES = 'DailyRanges';
+const RANGE_HEADERS = ['Date','High','Low','Range'];
 
 const TRADE_HEADERS = ['ID','Date','Time','Direction','Grade','Setup','Outcome','EntryPremium','ExitPremium','SLPremium','Target1Premium','Target2Premium','Lots','PnL','RValue','VIX','SessionState','RedViolation','ReentryAllowed','Reentry_Entry','Reentry_Exit','Reentry_Lots','Reentry_Outcome','Reentry_PnL','Notes','VixAtEntry'];
 const SESSION_HEADERS = ['Date','State','VIX','TradeCount','DayPnL','ConsecutiveLosses','PostMarket_Integration','PostMarket_Missed','PostMarket_Tomorrow'];
@@ -2153,7 +2155,7 @@ async function initSheetStructure() {
   if (!meta) return;
 
   const existing = (meta.sheets || []).map(s => s.properties.title);
-  const needed = [SHEET_TRADES, SHEET_SESSIONS, SHEET_SETTINGS, SHEET_PREMARKET];
+  const needed = [SHEET_TRADES, SHEET_SESSIONS, SHEET_SETTINGS, SHEET_PREMARKET, SHEET_RANGES];
   const toCreate = needed.filter(n => !existing.includes(n));
 
   if (toCreate.length > 0) {
@@ -2168,7 +2170,8 @@ async function initSheetStructure() {
     { range: `${SHEET_TRADES}!A1`, values: [TRADE_HEADERS] },
     { range: `${SHEET_SESSIONS}!A1`, values: [SESSION_HEADERS] },
     { range: `${SHEET_SETTINGS}!A1`, values: [SETTINGS_HEADERS] },
-    { range: `${SHEET_PREMARKET}!A1`, values: [PREMARKET_HEADERS] }
+    { range: `${SHEET_PREMARKET}!A1`, values: [PREMARKET_HEADERS] },
+    { range: `${SHEET_RANGES}!A1`, values: [RANGE_HEADERS] }
   ];
 
   await sheetsRequest('POST', '/values:batchUpdate', {
@@ -2217,13 +2220,25 @@ async function loadFromSheets() {
     `${SHEET_TRADES}!A2:Z`,
     `${SHEET_SESSIONS}!A2:I`,
     `${SHEET_SETTINGS}!A2:B`,
-    `${SHEET_PREMARKET}!A2:AL`
+    `${SHEET_PREMARKET}!A2:AL`,
+    `${SHEET_RANGES}!A2:D`
   ];
 
   const res = await sheetsRequest('GET', `/values:batchGet?ranges=${ranges.map(encodeURIComponent).join('&ranges=')}`);
   if (!res) return;
 
-  const [tradesData, sessionsData, settingsData, premarketData] = res.valueRanges || [];
+  const [tradesData, sessionsData, settingsData, premarketData, rangesData] = res.valueRanges || [];
+
+  // Parse daily range history
+  const rangeRows = (rangesData && rangesData.values) || [];
+  if (rangeRows.length) {
+    appState.dailyRanges = rangeRows
+      .filter(r => r[0] && r[3])
+      .map(r => ({ date: r[0], high: parseFloat(r[1]) || null, low: parseFloat(r[2]) || null, range: parseFloat(r[3]) }))
+      .filter(d => !isNaN(d.range))
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(-20);
+  }
 
   // Parse trades
   const tradeRows = (tradesData && tradesData.values) || [];
@@ -2529,6 +2544,19 @@ async function syncSettingsToSheets() {
     ['lotSize', s.lotSize]
   ];
   await sheetsRequest('PUT', `/values/${SHEET_SETTINGS}!A2:B5?valueInputOption=RAW`, { values: rows });
+}
+
+async function syncDailyRangesToSheets() {
+  if (!syncEnabled) return;
+  const hist = appState.dailyRanges || [];
+  // Small, capped dataset (max 20 rows) — simplest and most reliable to
+  // clear and rewrite the whole table rather than track row-by-row diffs.
+  await sheetsRequest('POST', `/values/${SHEET_RANGES}!A2:D30:clear`, {});
+  if (!hist.length) return;
+  const rows = hist.map(d => [d.date, d.high ?? '', d.low ?? '', d.range]);
+  await sheetsRequest('PUT', `/values/${SHEET_RANGES}!A2:D${hist.length + 1}?valueInputOption=RAW`, {
+    values: rows
+  });
 }
 
 async function syncPreMarketToSheets(pm) {
@@ -4041,6 +4069,21 @@ function savePreMarket() {
   };
   saveData();
   syncPreMarketToSheets(appState.premarket);
+
+  // Roll the just-completed prior session's range (PDH/PDL, entered fresh
+  // each morning) into the ADR history — this is the real, final range for
+  // that day, not an estimate, and it's data you're already entering.
+  const pdh = g('sd-pdh'), pdl = g('sd-pdl');
+  if (pdh && pdl && pdh > pdl) {
+    const today = getTodayStr();
+    appState.dailyRanges = (appState.dailyRanges || []).filter(d => d.date !== today);
+    appState.dailyRanges.push({ date: today, high: pdh, low: pdl, range: pdh - pdl });
+    appState.dailyRanges.sort((a, b) => a.date.localeCompare(b.date));
+    if (appState.dailyRanges.length > 20) appState.dailyRanges = appState.dailyRanges.slice(-20);
+    saveData();
+    syncDailyRangesToSheets();
+  }
+
   showToast('Pre-market saved & synced.');
 }
 
@@ -4055,18 +4098,6 @@ function savePostMarket() {
   const today = getTodayStr();
   const idx = appState.dailySessions.findIndex(s => s.date === today);
   if (idx >= 0) appState.dailySessions[idx].postMarket = pm;
-
-  // Roll today's realized range into the ADR history — uses whatever is
-  // currently in the 9:45 High/Low fields, so update them before end of day
-  // if the range extended further after the morning check.
-  const high = parseFloat(document.getElementById('mc-high')?.value);
-  const low = parseFloat(document.getElementById('mc-low')?.value);
-  if (!isNaN(high) && !isNaN(low) && high > low) {
-    appState.dailyRanges = (appState.dailyRanges || []).filter(d => d.date !== today);
-    appState.dailyRanges.push({ date: today, range: high - low });
-    appState.dailyRanges.sort((a, b) => a.date.localeCompare(b.date));
-    if (appState.dailyRanges.length > 20) appState.dailyRanges = appState.dailyRanges.slice(-20);
-  }
 
   saveData();
   syncSessionToSheets();
@@ -4134,7 +4165,7 @@ function backfillDailyRanges() {
     const [date, highStr, lowStr] = parts;
     const high = parseFloat(highStr), low = parseFloat(lowStr);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(high) || isNaN(low) || high <= low) { errors.push(i + 1); return; }
-    parsed.push({ date, range: high - low });
+    parsed.push({ date, high, low, range: high - low });
   });
 
   if (!parsed.length) { showToast(`Couldn't parse any rows. Check the format: YYYY-MM-DD,high,low`); return; }
@@ -4145,6 +4176,7 @@ function backfillDailyRanges() {
   if (merged.length > 20) merged = merged.slice(-20);
   appState.dailyRanges = merged;
   saveData();
+  syncDailyRangesToSheets();
 
   const msg = errors.length
     ? `Imported ${parsed.length} days, skipped ${errors.length} bad row(s): line ${errors.join(', ')}.`
@@ -4374,7 +4406,7 @@ function suggestDayType() {
   if (statusEl) {
     statusEl.textContent = adrInfo
       ? `ADR based on ${adrInfo.n} of 20 trading days · avg range ${Math.round(adrInfo.avg)} pts`
-      : 'No range history yet — backfill in Settings, or it builds automatically as you log each day.';
+      : 'No range history yet — backfill in Settings, or it builds automatically each morning from your Pre-Market PDH/PDL.';
   }
 
   const box = document.getElementById('daytypeSuggestion');
