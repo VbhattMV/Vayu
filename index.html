@@ -1533,6 +1533,10 @@
     </div>
     <input type="file" id="historicalFileInput" accept="application/json" style="display:none;" onchange="handleHistoricalFileSelect(this)">
     <button class="btn btn-gold" onclick="document.getElementById('historicalFileInput').click()">Choose historical_trades.json →</button>
+    <div style="font-size:11px;color:var(--text-muted);margin:12px 0 8px;padding-top:12px;border-top:1px solid var(--border);">
+      If you imported historical trades before this app version, a bug meant they could lose their "historical" tag and have their P&L silently overwritten each time you loaded from Sheets. Run this once to clear out any affected entries, then re-import the file above fresh.
+    </div>
+    <button class="btn btn-outline" onclick="repairHistoricalTrades()">Clear old historical entries (run once)</button>
   </div>
 
   <div class="card">
@@ -2051,7 +2055,7 @@ const RANGE_HEADERS = ['Date','High','Low','Range'];
 const SHEET_VIXHIST = 'VixHistory';
 const VIXHIST_HEADERS = ['Date','High','Low'];
 
-const TRADE_HEADERS = ['ID','Date','Time','Direction','Grade','Setup','Outcome','EntryPremium','ExitPremium','SLPremium','Target1Premium','Target2Premium','Lots','PnL','RValue','VIX','SessionState','RedViolation','ReentryAllowed','Reentry_Entry','Reentry_Exit','Reentry_Lots','Reentry_Outcome','Reentry_PnL','Notes','VixAtEntry','RangeRatioAtEntry'];
+const TRADE_HEADERS = ['ID','Date','Time','Direction','Grade','Setup','Outcome','EntryPremium','ExitPremium','SLPremium','Target1Premium','Target2Premium','Lots','PnL','RValue','VIX','SessionState','RedViolation','ReentryAllowed','Reentry_Entry','Reentry_Exit','Reentry_Lots','Reentry_Outcome','Reentry_PnL','Notes','VixAtEntry','RangeRatioAtEntry','Historical'];
 const SESSION_HEADERS = ['Date','State','VIX','TradeCount','DayPnL','ConsecutiveLosses','PostMarket_Integration','PostMarket_Missed','PostMarket_Tomorrow'];
 const SETTINGS_HEADERS = ['Key','Value'];
 const PREMARKET_HEADERS = ['Date','BodyState','EmotionalWeather','ReadinessScore','PsychicHygiene_EnergyCleared','PsychicHygiene_WitnessAnchor','PsychicHygiene_RecognitionHunger','PsychicHygiene_Self2Accessible','PsychicHygiene_NoStressBleed','PDClose_Context','HTFBias','KeyLevels','Scenarios','Sankalpa','PDH','PDL','PrevDayClose','PreOpen','Gap','GapType','OpeningBias','BiasReason','PD_VAH','PD_VAL','PD_POC','EPD_VAH','EPD_VAL','EPD_POC','PW_VAH','PW_VAL','PW_POC','CW_VAH','CW_VAL','CW_POC','EPW_VAH','EPW_VAL','EPW_POC','YdayMarketReview'];
@@ -2274,7 +2278,7 @@ async function syncAllTradesToSheets() {
     trade.notes || ''
   ]));
 
-  await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:AA:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+  await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:AB:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
     values: rows
   });
 
@@ -2284,7 +2288,7 @@ async function loadFromSheets() {
   updateSyncUI('pending', 'Loading…');
 
   const ranges = [
-    `${SHEET_TRADES}!A2:AA`,
+    `${SHEET_TRADES}!A2:AB`,
     `${SHEET_SESSIONS}!A2:I`,
     `${SHEET_SETTINGS}!A2:B`,
     `${SHEET_PREMARKET}!A2:AL`,
@@ -2349,12 +2353,18 @@ async function loadFromSheets() {
         outcome: r[22]||'',
         pnl: parseFloat(r[23])||0
       } : null,
-      notes: r[24] || ''
+      notes: r[24] || '',
+      vixAtEntry: r[25] || '',
+      vixAtEntryLabel: r[25] || '',
+      rangeRatioAtEntry: r[26] ? parseInt(r[26]) : null,
+      historical: r[27] === 'YES'
     }));
 
-    // Recalculate P&L with correct formula for all loaded trades
+    // Recalculate P&L with correct formula — but never touch historical
+    // (backfilled) trades, whose real P&L was computed from actual broker
+    // prices and lot sizes, not this fixed-65 formula.
     appState.trades.forEach(t => {
-      if (t.entry && t.exit && t.lots) {
+      if (t.entry && t.exit && t.lots && !t.historical) {
         const correctPnl = (t.exit - t.entry) * t.lots * 65;
         const reentryPnl = (t.reentry && t.reentry.entry && t.reentry.exit)
           ? (t.reentry.exit - t.reentry.entry) * (t.reentry.lots || 1) * 65
@@ -2484,7 +2494,7 @@ async function loadFromSheets() {
       trade.notes || ''
     ]));
     // Clear data rows and rewrite with correct P&L
-    await sheetsRequest('PUT', `/values/${SHEET_TRADES}!A2:AA?valueInputOption=RAW`, {
+    await sheetsRequest('PUT', `/values/${SHEET_TRADES}!A2:AB?valueInputOption=RAW`, {
       values: allRows
     });
     showToast('P&L corrected in Google Sheets ✓');
@@ -2531,7 +2541,8 @@ function tradeToRow(trade) {
     trade.reentry ? trade.reentry.pnl||'' : '',
     trade.notes || '',
     trade.vixAtEntryLabel || trade.vixAtEntry || '',
-    (trade.rangeRatioAtEntry != null) ? trade.rangeRatioAtEntry + '%' : ''
+    (trade.rangeRatioAtEntry != null) ? trade.rangeRatioAtEntry + '%' : '',
+    trade.historical ? 'YES' : 'NO'
   ];
 }
 
@@ -2540,7 +2551,7 @@ async function syncTradeToSheets(trade) {
   const row = tradeToRow(trade);
 
   // 25 columns: A through Y
-  const colRange = 'AA';
+  const colRange = 'AB';
 
   // Check if this trade ID already exists — compare as string since Sheets returns strings
   const existing = await sheetsRequest('GET', `/values/${SHEET_TRADES}!A:A`);
@@ -2578,7 +2589,7 @@ async function syncBulkTradesToSheets(trades, onProgress) {
   const CHUNK = 200;
   for (let i = 0; i < newRows.length; i += CHUNK) {
     const chunk = newRows.slice(i, i + CHUNK);
-    await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:AA:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+    await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:AB:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
       values: chunk
     });
     if (onProgress) onProgress(Math.min(i + CHUNK, newRows.length), newRows.length);
@@ -4426,6 +4437,43 @@ async function importHistoricalTrades(incoming) {
     showToast(`Sheets sync complete — ${result.synced} rows added.`);
   } else {
     showToast('Sign in to Google Sheets (Settings tab) to sync these trades too.');
+  }
+}
+
+// One-time repair: an earlier version of this app didn't sync the
+// "historical" flag or the range/VIX-at-entry fields to Sheets, so any
+// trade reloaded from Sheets lost its historical tag and had its P&L
+// silently overwritten by a formula that doesn't apply to backfilled data.
+// This removes anything matching the known fingerprint of a backfilled
+// trade (grade === 'Historical') so it can be cleanly re-imported.
+async function repairHistoricalTrades() {
+  const suspect = appState.trades.filter(t => t.grade === 'Historical' || t.historical === true);
+  if (!suspect.length) {
+    showToast('No historical entries found — nothing to repair.');
+    return;
+  }
+  if (!confirm(`This will remove ${suspect.length} historical trade entries (both correctly and incorrectly tagged ones can't be told apart reliably after the bug) so you can re-import them cleanly. Your live, graded trades are not touched. Continue?`)) {
+    return;
+  }
+
+  appState.trades = appState.trades.filter(t => !(t.grade === 'Historical' || t.historical === true));
+  saveData();
+  renderTradeList();
+  renderAnalytics();
+
+  if (syncEnabled) {
+    showToast('Clearing old entries from Sheets…');
+    // Full rewrite of the Trades sheet with only what remains (your live
+    // trades) — clears out every stale historical row in one pass.
+    await sheetsRequest('POST', `/values/${SHEET_TRADES}!A2:AB5000:clear`, {});
+    if (appState.trades.length) {
+      await syncBulkTradesToSheets(appState.trades, (done, total) => {
+        showToast(`Re-syncing live trades… ${done}/${total}`);
+      });
+    }
+    showToast(`Cleaned up. Now re-import historical_trades.json using the button above.`);
+  } else {
+    showToast(`Removed ${suspect.length} entries locally. Now re-import historical_trades.json using the button above.`);
   }
 }
 
