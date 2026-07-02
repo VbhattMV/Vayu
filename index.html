@@ -651,7 +651,16 @@
         <label>Today's POC (so far)</label>
         <input type="number" id="mc-poc" placeholder="24045">
       </div>
+      <div class="field">
+        <label>VIX High (so far)</label>
+        <input type="number" id="mc-vixhigh" placeholder="14.2" step="0.1">
+      </div>
+      <div class="field">
+        <label>VIX Low (so far)</label>
+        <input type="number" id="mc-vixlow" placeholder="12.8" step="0.1">
+      </div>
     </div>
+    <div style="font-size:10px;color:var(--text-muted);margin:-4px 0 10px;">Update these as VIX moves — carry them into tomorrow's Pre-Market as "Yesterday's VIX High/Low" once today closes, same as PDH/PDL.</div>
 
     <div id="liveRangeBox" style="display:none;margin-top:4px;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:4px;">
@@ -880,6 +889,14 @@
       <div class="field">
         <label>PDL</label>
         <input type="number" id="sd-pdl" placeholder="24500" oninput="calcSessionBias()">
+      </div>
+      <div class="field">
+        <label>Yesterday's VIX High</label>
+        <input type="number" id="sd-vixhigh" placeholder="14.2" step="0.1">
+      </div>
+      <div class="field">
+        <label>Yesterday's VIX Low</label>
+        <input type="number" id="sd-vixlow" placeholder="12.8" step="0.1">
       </div>
       <div class="field">
         <label>Prev Day Close</label>
@@ -1499,6 +1516,17 @@
   </div>
 
   <div class="card">
+    <div class="card-title">Backfill VIX History <span style="color:var(--text-muted);font-size:9px;font-weight:400;">— for divergence check</span></div>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">
+      Same idea as range history, but for VIX's own daily high/low. Going forward this fills itself in from "Yesterday's VIX High/Low" in Pre-Market — no extra step needed. Paste past data below to jumpstart it. One line per day: <code>YYYY-MM-DD,high,low</code>. Syncs to a new "VixHistory" tab in your Sheet.
+    </div>
+    <div class="field">
+      <textarea id="vix-backfill-input" placeholder="2026-06-02,13.8,12.9&#10;2026-06-03,14.5,13.2&#10;..." style="min-height:100px;font-family:var(--mono);font-size:11px;"></textarea>
+    </div>
+    <button class="btn btn-outline" onclick="backfillVixHistory()">Import VIX History</button>
+  </div>
+
+  <div class="card">
     <div class="card-title">Import Historical Trades</div>
     <div style="font-size:12px;color:var(--text-dim);margin-bottom:12px;line-height:1.6;">
       Backfill trades reconstructed from your broker tradebook. These are tagged as historical — kept separate from your live graded stats, but included in the Historical Performance view and synced to Sheets.
@@ -2021,7 +2049,7 @@ const SHEET_PREMARKET = 'PreMarket';
 const SHEET_RANGES = 'DailyRanges';
 const RANGE_HEADERS = ['Date','High','Low','Range'];
 const SHEET_VIXHIST = 'VixHistory';
-const VIXHIST_HEADERS = ['Date','VixBand'];
+const VIXHIST_HEADERS = ['Date','High','Low'];
 
 const TRADE_HEADERS = ['ID','Date','Time','Direction','Grade','Setup','Outcome','EntryPremium','ExitPremium','SLPremium','Target1Premium','Target2Premium','Lots','PnL','RValue','VIX','SessionState','RedViolation','ReentryAllowed','Reentry_Entry','Reentry_Exit','Reentry_Lots','Reentry_Outcome','Reentry_PnL','Notes','VixAtEntry','RangeRatioAtEntry'];
 const SESSION_HEADERS = ['Date','State','VIX','TradeCount','DayPnL','ConsecutiveLosses','PostMarket_Integration','PostMarket_Missed','PostMarket_Tomorrow'];
@@ -2261,7 +2289,7 @@ async function loadFromSheets() {
     `${SHEET_SETTINGS}!A2:B`,
     `${SHEET_PREMARKET}!A2:AL`,
     `${SHEET_RANGES}!A2:D`,
-    `${SHEET_VIXHIST}!A2:B`
+    `${SHEET_VIXHIST}!A2:C`
   ];
 
   const res = await sheetsRequest('GET', `/values:batchGet?ranges=${ranges.map(encodeURIComponent).join('&ranges=')}`);
@@ -2280,13 +2308,13 @@ async function loadFromSheets() {
       .slice(-20);
   }
 
-  // Parse VIX band history
+  // Parse VIX high/low history
   const vixHistRows = (vixHistData && vixHistData.values) || [];
   if (vixHistRows.length) {
     appState.vixHistory = vixHistRows
-      .filter(r => r[0] && r[1])
-      .map(r => ({ date: r[0], band: parseInt(r[1]) }))
-      .filter(d => !isNaN(d.band))
+      .filter(r => r[0] && r[1] && r[2])
+      .map(r => ({ date: r[0], high: parseFloat(r[1]), low: parseFloat(r[2]) }))
+      .filter(d => !isNaN(d.high) && !isNaN(d.low))
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(-20);
   }
@@ -2615,10 +2643,10 @@ async function syncDailyRangesToSheets() {
 async function syncVixHistoryToSheets() {
   if (!syncEnabled) return;
   const hist = appState.vixHistory || [];
-  await sheetsRequest('POST', `/values/${SHEET_VIXHIST}!A2:B30:clear`, {});
+  await sheetsRequest('POST', `/values/${SHEET_VIXHIST}!A2:C30:clear`, {});
   if (!hist.length) return;
-  const rows = hist.map(d => [d.date, d.band]);
-  await sheetsRequest('PUT', `/values/${SHEET_VIXHIST}!A2:B${hist.length + 1}?valueInputOption=RAW`, {
+  const rows = hist.map(d => [d.date, d.high, d.low]);
+  await sheetsRequest('PUT', `/values/${SHEET_VIXHIST}!A2:C${hist.length + 1}?valueInputOption=RAW`, {
     values: rows
   });
 }
@@ -2825,6 +2853,8 @@ function loadData() {
       appState.trades = d.trades || [];
       appState.dailySessions = d.dailySessions || [];
       appState.settings = { ...appState.settings, ...(d.settings || {}) };
+      appState.dailyRanges = d.dailyRanges || [];
+      appState.vixHistory = d.vixHistory || [];
 
       // MIGRATION: Recalculate P&L for all trades using correct formula
       // Both CE Buy (Long) and PE Buy (Short) are buys — always (exit - entry) × lots × 65
@@ -2857,7 +2887,9 @@ function loadData() {
         localStorage.setItem('vayu_data', JSON.stringify({
           trades: appState.trades,
           dailySessions: appState.dailySessions,
-          settings: appState.settings
+          settings: appState.settings,
+          dailyRanges: appState.dailyRanges,
+          vixHistory: appState.vixHistory
         }));
       }
 
@@ -2905,7 +2937,9 @@ function saveData() {
     localStorage.setItem('vayu_data', JSON.stringify({
       trades: appState.trades,
       dailySessions: appState.dailySessions,
-      settings: appState.settings
+      settings: appState.settings,
+      dailyRanges: appState.dailyRanges,
+      vixHistory: appState.vixHistory
     }));
   } catch(e) { console.log('Save error:', e); }
 }
@@ -4189,6 +4223,19 @@ function savePreMarket() {
     renderAdrHeader();
   }
 
+  // Same pattern for VIX — yesterday's high/low, entered fresh each morning.
+  const vixHigh = g('sd-vixhigh'), vixLow = g('sd-vixlow');
+  if (vixHigh && vixLow && vixHigh >= vixLow) {
+    const today = getTodayStr();
+    appState.vixHistory = (appState.vixHistory || []).filter(d => d.date !== today);
+    appState.vixHistory.push({ date: today, high: vixHigh, low: vixLow });
+    appState.vixHistory.sort((a, b) => a.date.localeCompare(b.date));
+    if (appState.vixHistory.length > 20) appState.vixHistory = appState.vixHistory.slice(-20);
+    saveData();
+    syncVixHistoryToSheets();
+    renderAdrHeader();
+  }
+
   showToast('Pre-market saved & synced.');
 }
 
@@ -4289,6 +4336,40 @@ function backfillDailyRanges() {
     : `Imported ${parsed.length} days of range history.`;
   showToast(msg);
   document.getElementById('adr-backfill-input').value = '';
+}
+
+function backfillVixHistory() {
+  const raw = document.getElementById('vix-backfill-input').value.trim();
+  if (!raw) { showToast('Paste some rows first — one line per day.'); return; }
+
+  const lines = raw.split('\n').map(l => l.trim()).filter(Boolean);
+  const parsed = [];
+  const errors = [];
+  lines.forEach((line, i) => {
+    const parts = line.split(',').map(p => p.trim());
+    if (parts.length !== 3) { errors.push(i + 1); return; }
+    const [date, highStr, lowStr] = parts;
+    const high = parseFloat(highStr), low = parseFloat(lowStr);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || isNaN(high) || isNaN(low) || high < low) { errors.push(i + 1); return; }
+    parsed.push({ date, high, low });
+  });
+
+  if (!parsed.length) { showToast(`Couldn't parse any rows. Check the format: YYYY-MM-DD,high,low`); return; }
+
+  let merged = (appState.vixHistory || []).filter(d => !parsed.some(p => p.date === d.date));
+  merged = merged.concat(parsed);
+  merged.sort((a, b) => a.date.localeCompare(b.date));
+  if (merged.length > 20) merged = merged.slice(-20);
+  appState.vixHistory = merged;
+  saveData();
+  syncVixHistoryToSheets();
+  renderAdrHeader();
+
+  const msg = errors.length
+    ? `Imported ${parsed.length} days, skipped ${errors.length} bad row(s): line ${errors.join(', ')}.`
+    : `Imported ${parsed.length} days of VIX history.`;
+  showToast(msg);
+  document.getElementById('vix-backfill-input').value = '';
 }
 
 function handleHistoricalFileSelect(input) {
@@ -4448,13 +4529,7 @@ function setVixExt(level, silent) {
   updateLotEnforcer();
   if (!silent) {
     updateSessionDisplay();
-    const today = getTodayStr();
-    appState.vixHistory = (appState.vixHistory || []).filter(d => d.date !== today);
-    appState.vixHistory.push({ date: today, band: parseInt(level.replace('v','')) || 2 });
-    appState.vixHistory.sort((a, b) => a.date.localeCompare(b.date));
-    if (appState.vixHistory.length > 20) appState.vixHistory = appState.vixHistory.slice(-20);
     saveData();
-    syncVixHistoryToSheets();
   }
 }
 
@@ -4572,14 +4647,15 @@ function renderVixAdrDivergence() {
   const rangeTrend = recentAvgRange > priorAvgRange * 1.1 ? 'up' : (recentAvgRange < priorAvgRange * 0.9 ? 'down' : 'flat');
 
   const recentVix = vix.slice(-5), priorVix = vix.slice(-10, -5);
-  const recentAvgVix = recentVix.reduce((a,d)=>a+d.band,0) / recentVix.length;
-  const priorAvgVix = priorVix.reduce((a,d)=>a+d.band,0) / priorVix.length;
-  const vixTrend = recentAvgVix > priorAvgVix + 0.3 ? 'up' : (recentAvgVix < priorAvgVix - 0.3 ? 'down' : 'flat');
+  const vixMid = d => (d.high + d.low) / 2;
+  const recentAvgVix = recentVix.reduce((a,d)=>a+vixMid(d),0) / recentVix.length;
+  const priorAvgVix = priorVix.reduce((a,d)=>a+vixMid(d),0) / priorVix.length;
+  const vixTrend = recentAvgVix > priorAvgVix * 1.05 ? 'up' : (recentAvgVix < priorAvgVix * 0.95 ? 'down' : 'flat');
 
   if ((rangeTrend === 'up' && vixTrend === 'down') || (rangeTrend === 'down' && vixTrend === 'up')) {
-    el.innerHTML = `<span style="color:var(--yellow);">⚠ Divergence:</span> realized range is trending ${rangeTrend} while your logged VIX band is trending ${vixTrend}. One of the two may be lagging the other right now — worth a manual gut-check before trusting either in isolation.`;
+    el.innerHTML = `<span style="color:var(--yellow);">⚠ Divergence:</span> realized range is trending ${rangeTrend} while VIX is trending ${vixTrend} (avg ${priorAvgVix.toFixed(1)} → ${recentAvgVix.toFixed(1)}). One of the two may be lagging the other right now — worth a manual gut-check before trusting either in isolation.`;
   } else {
-    el.textContent = `Range (${rangeTrend}) and VIX band (${vixTrend}) are broadly in agreement — no divergence flagged.`;
+    el.textContent = `Range (${rangeTrend}) and VIX (${vixTrend}, avg ${recentAvgVix.toFixed(1)}) are broadly in agreement — no divergence flagged.`;
   }
 }
 
