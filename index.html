@@ -2890,12 +2890,15 @@ function saveData() {
   } catch(e) { console.log('Save error:', e); }
 }
 
-// Resilient historical-trade check — the boolean flag itself can be lost
-// if a Sheets round-trip ever regresses (it's happened once already), but
-// grade/setup text columns have never been dropped, so checking both
-// makes this classification survive even if the flag alone fails again.
+// Historical-trade check — deliberately does NOT consult t.historical at
+// all anymore. That boolean flag has now been observed both lost when it
+// should've been true, and wrongly set to true for genuine live trades.
+// Grade is a normal, always-synced column that has survived every single
+// round-trip today without corruption, so it's the only signal trusted
+// for classification. The boolean may still be set when creating new
+// historical imports, but nothing reads it for filtering purposes.
 function isHistoricalTrade(t) {
-  return t.historical === true || t.grade === 'Historical';
+  return t.grade === 'Historical';
 }
 
 function getTodayStr() {
