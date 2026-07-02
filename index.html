@@ -2470,6 +2470,8 @@ async function loadFromSheets() {
   updateGoogleAuthUI(true);
   updateSyncUI('ok', 'Synced');
   renderAdrHeader();
+  saveData(); // mirror what was just loaded from Sheets into local storage,
+              // so a future offline/fresh load isn't stuck on stale local data
   showToast('Data loaded from Google Sheets');
 
   // Push any local trades that aren't in sheets yet
