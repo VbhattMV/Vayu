@@ -356,6 +356,39 @@
     .tabs { max-width: 540px; left: 50%; transform: translateX(-50%); }
   }
 
+  /* ── DESKTOP: light theme, landscape multi-column ── */
+  @media (min-width: 900px) {
+    :root {
+      --obsidian: #f6f4ef;
+      --surface: #ffffff;
+      --surface2: #f2f0ea;
+      --surface3: #e9e6dd;
+      --border: #e3ddd0;
+      --border2: #d3cbb8;
+      --gold: #a9822f;
+      --gold-dim: #7a5f22;
+      --gold-glow: rgba(169,130,47,0.12);
+      --text: #1c2333;
+      --text-dim: #5c6579;
+      --text-muted: #98a0b2;
+      --green: #16a34a;
+      --yellow: #b8860b;
+      --red: #dc2626;
+      --blue: #2563eb;
+    }
+    body { background: var(--obsidian); }
+    .page { max-width: 1400px; padding: 88px 40px 60px; column-count: 2; column-gap: 24px; }
+    .card { break-inside: avoid; }
+    .nav { background: rgba(246,244,239,0.88); }
+    .tabs { max-width: 640px; height: 56px; border-radius: 16px 16px 0 0; box-shadow: 0 -4px 24px rgba(0,0,0,0.08); background: rgba(255,255,255,0.92); }
+    ::-webkit-scrollbar { width: 10px; }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 6px; }
+  }
+
+  @media (min-width: 1300px) {
+    .page { column-count: 3; }
+  }
+
   /* ── SYNC ── */
   .sync-dot {
     width: 8px; height: 8px; border-radius: 50%;
@@ -588,7 +621,10 @@
 
   <!-- DAY CLASSIFIER -->
   <div class="card">
-    <div class="card-title">Day Classification <span style="color:var(--text-muted);font-size:9px;">— set by 9:45 AM</span></div>
+    <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+      <span>Day Classification <span style="color:var(--text-muted);font-size:9px;">— set by 9:45 AM</span></span>
+      <button onclick="openModal('modal-daytype-guide')" style="background:none;border:1px solid var(--border2);color:var(--gold);width:22px;height:22px;border-radius:50%;font-size:12px;font-family:var(--mono);cursor:pointer;flex-shrink:0;">?</button>
+    </div>
     <div class="day-type-row">
       <div class="day-type-btn" id="dt-trend" onclick="setDayType('trend')">
         <span class="dt-icon">📈</span><div class="dt-label">Trend Day</div><div class="dt-rule">All 3 setups · Full sizing</div>
@@ -941,6 +977,10 @@
       </div>
     </div>
     <div class="field">
+      <label>Yesterday's Market Review</label>
+      <textarea placeholder="How did the market act yesterday — trend, chop, fake move? What candle formed on the daily chart (doji, engulfing, inside bar, marubozu...)? Any level it respected or broke?" id="ydayReview"></textarea>
+    </div>
+    <div class="field">
       <label>HTF Bias (30-min)</label>
       <div class="pill-row" id="htfBias">
         <div class="pill" onclick="togglePill(this,'htfBias')">Bullish</div>
@@ -1208,7 +1248,7 @@
 
     <div id="riskAlert" class="alert"></div>
 
-    <button class="btn btn-gold mt12" onclick="openModal('modal-trade-entry')">Execute & Log Trade</button>
+    <button class="btn btn-gold mt12" onclick="openTradeEntryModal()">Execute & Log Trade</button>
   </div>
 
 </div>
@@ -1557,6 +1597,17 @@
     </div>
 
     <div class="field">
+      <label>VIX at Entry <span style="color:var(--text-muted);font-weight:400;">— may differ from morning regime</span></label>
+      <div class="vix-row-ext" id="te-vix">
+        <div class="vix-btn-sm" id="tevix-v1" onclick="setTeVix('v1')"><div style="font-size:12px;">▼13</div><div style="font-size:9px;margin-top:1px;">Low</div></div>
+        <div class="vix-btn-sm" id="tevix-v2" onclick="setTeVix('v2')"><div style="font-size:12px;">13–17</div><div style="font-size:9px;margin-top:1px;">Normal</div></div>
+        <div class="vix-btn-sm" id="tevix-v3" onclick="setTeVix('v3')"><div style="font-size:12px;">17–20</div><div style="font-size:9px;margin-top:1px;">Elevated</div></div>
+        <div class="vix-btn-sm" id="tevix-v4" onclick="setTeVix('v4')"><div style="font-size:12px;">20–25</div><div style="font-size:9px;margin-top:1px;">High</div></div>
+        <div class="vix-btn-sm" id="tevix-v5" onclick="setTeVix('v5')"><div style="font-size:12px;">▲25</div><div style="font-size:9px;margin-top:1px;">Crisis</div></div>
+      </div>
+    </div>
+
+    <div class="field">
       <label>Direction</label>
       <div class="pill-row" id="te-dir">
         <div class="pill" onclick="togglePill(this,'te-dir')">Long (CE Buy)</div>
@@ -1779,6 +1830,48 @@
   </div>
 </div>
 
+<!-- DAY TYPE GUIDE MODAL -->
+<div class="modal-overlay" id="modal-daytype-guide">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3>Day Type Guide</h3>
+    <div style="font-size:12px;color:var(--text-dim);margin-bottom:16px;line-height:1.5;">Working criteria to identify the day by ~9:45 AM. These are a starting reference — calibrate the thresholds against your own FRVP read as you log outcomes against them.</div>
+
+    <div class="snap-step">
+      <div class="snap-letter" style="background:rgba(34,197,94,0.15);color:var(--green);">📈</div>
+      <div class="snap-content">
+        <div class="st" style="color:var(--green);">Trend Day</div>
+        <div class="sd">Opening range breaks and holds beyond the prior day's value area within the first 30-45 min, with limited overlap back into it. Range expansion clearly above your recent average daily range. POC migrates directionally through the session rather than sitting still. Price accepts new value away from yesterday's — it doesn't keep returning to test it.</div>
+      </div>
+    </div>
+    <div class="snap-step">
+      <div class="snap-letter" style="background:var(--gold-glow);color:var(--gold);">〰️</div>
+      <div class="snap-content">
+        <div class="st" style="color:var(--gold);">Moderate Day</div>
+        <div class="sd">Some directional movement, but with real two-way rotation — price makes progress then retraces a meaningful chunk before continuing. Range is roughly in line with your recent average, not expanded. Value area overlaps partially with the prior day rather than fully separating from it. A real move exists, but it isn't clean.</div>
+      </div>
+    </div>
+    <div class="snap-step">
+      <div class="snap-letter" style="background:rgba(59,130,246,0.15);color:var(--blue);">⬜</div>
+      <div class="snap-content">
+        <div class="st" style="color:var(--blue);">Consolidation Day</div>
+        <div class="sd">Price stays largely inside or tight around the prior day's value area — heavy overlap, POC barely moves. Range is compressed, noticeably below your recent average. Repeated failed breakouts in both directions. This is the day type your own data shows costs you the most when forced — if it's not clearly A+, the honest read is often no trade at all.</div>
+      </div>
+    </div>
+    <div class="snap-step">
+      <div class="snap-letter" style="background:rgba(239,68,68,0.15);color:var(--red);">⚡</div>
+      <div class="snap-content">
+        <div class="st" style="color:var(--red);">Event Day</div>
+        <div class="sd">A known scheduled event (RBI policy, Fed decision, major macro data, expiry-adjacent geopolitical headline risk) sits in or right before today's session, or VIX has gapped meaningfully overnight. This classification isn't about how price is behaving intraday — it's a pre-market flag based on what's scheduled or already happened before the open. When in doubt about carried/overnight exposure specifically, this is the day type to default to.</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div style="font-size:11px;color:var(--text-muted);text-align:center;">If two types feel plausible by 9:45, classify down (toward Consolidation/Event, not up toward Trend) — the cost of under-trading a real trend day is smaller than the cost of over-trading a fake one.</div>
+    <button class="btn btn-outline mt12" onclick="closeModal('modal-daytype-guide')">Close</button>
+  </div>
+</div>
+
 <!-- WEEKLY REVIEW MODAL -->
 <div class="modal-overlay" id="modal-weekly-review">
   <div class="modal">
@@ -1847,10 +1940,10 @@ const SHEET_SESSIONS = 'Sessions';
 const SHEET_SETTINGS = 'Settings';
 const SHEET_PREMARKET = 'PreMarket';
 
-const TRADE_HEADERS = ['ID','Date','Time','Direction','Grade','Setup','Outcome','EntryPremium','ExitPremium','SLPremium','Target1Premium','Target2Premium','Lots','PnL','RValue','VIX','SessionState','RedViolation','ReentryAllowed','Reentry_Entry','Reentry_Exit','Reentry_Lots','Reentry_Outcome','Reentry_PnL','Notes'];
+const TRADE_HEADERS = ['ID','Date','Time','Direction','Grade','Setup','Outcome','EntryPremium','ExitPremium','SLPremium','Target1Premium','Target2Premium','Lots','PnL','RValue','VIX','SessionState','RedViolation','ReentryAllowed','Reentry_Entry','Reentry_Exit','Reentry_Lots','Reentry_Outcome','Reentry_PnL','Notes','VixAtEntry'];
 const SESSION_HEADERS = ['Date','State','VIX','TradeCount','DayPnL','ConsecutiveLosses','PostMarket_Integration','PostMarket_Missed','PostMarket_Tomorrow'];
 const SETTINGS_HEADERS = ['Key','Value'];
-const PREMARKET_HEADERS = ['Date','BodyState','EmotionalWeather','ReadinessScore','PsychicHygiene_EnergyCleared','PsychicHygiene_WitnessAnchor','PsychicHygiene_RecognitionHunger','PsychicHygiene_Self2Accessible','PsychicHygiene_NoStressBleed','PDClose_Context','HTFBias','KeyLevels','Scenarios','Sankalpa','PDH','PDL','PrevDayClose','PreOpen','Gap','GapType','OpeningBias','BiasReason','PD_VAH','PD_VAL','PD_POC','EPD_VAH','EPD_VAL','EPD_POC','PW_VAH','PW_VAL','PW_POC','CW_VAH','CW_VAL','CW_POC','EPW_VAH','EPW_VAL','EPW_POC'];
+const PREMARKET_HEADERS = ['Date','BodyState','EmotionalWeather','ReadinessScore','PsychicHygiene_EnergyCleared','PsychicHygiene_WitnessAnchor','PsychicHygiene_RecognitionHunger','PsychicHygiene_Self2Accessible','PsychicHygiene_NoStressBleed','PDClose_Context','HTFBias','KeyLevels','Scenarios','Sankalpa','PDH','PDL','PrevDayClose','PreOpen','Gap','GapType','OpeningBias','BiasReason','PD_VAH','PD_VAL','PD_POC','EPD_VAH','EPD_VAL','EPD_POC','PW_VAH','PW_VAL','PW_POC','CW_VAH','CW_VAL','CW_POC','EPW_VAH','EPW_VAL','EPW_POC','YdayMarketReview'];
 
 // ═══════════════════════════════════════════════════
 // GOOGLE AUTH
@@ -2068,7 +2161,7 @@ async function syncAllTradesToSheets() {
     trade.notes || ''
   ]));
 
-  await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:Y:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+  await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:Z:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
     values: rows
   });
 
@@ -2078,10 +2171,10 @@ async function loadFromSheets() {
   updateSyncUI('pending', 'Loading…');
 
   const ranges = [
-    `${SHEET_TRADES}!A2:Y`,
+    `${SHEET_TRADES}!A2:Z`,
     `${SHEET_SESSIONS}!A2:I`,
     `${SHEET_SETTINGS}!A2:B`,
-    `${SHEET_PREMARKET}!A2:AK`
+    `${SHEET_PREMARKET}!A2:AL`
   ];
 
   const res = await sheetsRequest('GET', `/values:batchGet?ranges=${ranges.map(encodeURIComponent).join('&ranges=')}`);
@@ -2182,12 +2275,14 @@ async function loadFromSheets() {
       date: todayPm[0] || '',
       keyLevels: todayPm[11] || '',
       scenarios: todayPm[12] || '',
-      sankalpa: todayPm[13] || ''
+      sankalpa: todayPm[13] || '',
+      ydayReview: todayPm[36] || ''
     };
     // Restore text fields
     if (document.getElementById('keyLevels')) document.getElementById('keyLevels').value = appState.premarket.keyLevels;
     if (document.getElementById('scenarios')) document.getElementById('scenarios').value = appState.premarket.scenarios;
     if (document.getElementById('sankalpa')) document.getElementById('sankalpa').value = appState.premarket.sankalpa;
+    if (document.getElementById('ydayReview')) document.getElementById('ydayReview').value = appState.premarket.ydayReview;
 
     // Restore session data numeric fields
     const sdMap = {
@@ -2252,7 +2347,7 @@ async function loadFromSheets() {
       trade.notes || ''
     ]));
     // Clear data rows and rewrite with correct P&L
-    await sheetsRequest('PUT', `/values/${SHEET_TRADES}!A2:Y?valueInputOption=RAW`, {
+    await sheetsRequest('PUT', `/values/${SHEET_TRADES}!A2:Z?valueInputOption=RAW`, {
       values: allRows
     });
     showToast('P&L corrected in Google Sheets ✓');
@@ -2296,7 +2391,8 @@ function tradeToRow(trade) {
     trade.reentry ? trade.reentry.lots||'' : '',
     trade.reentry ? trade.reentry.outcome||'' : '',
     trade.reentry ? trade.reentry.pnl||'' : '',
-    trade.notes || ''
+    trade.notes || '',
+    trade.vixAtEntryLabel || trade.vixAtEntry || ''
   ];
 }
 
@@ -2305,7 +2401,7 @@ async function syncTradeToSheets(trade) {
   const row = tradeToRow(trade);
 
   // 25 columns: A through Y
-  const colRange = 'Y';
+  const colRange = 'Z';
 
   // Check if this trade ID already exists — compare as string since Sheets returns strings
   const existing = await sheetsRequest('GET', `/values/${SHEET_TRADES}!A:A`);
@@ -2343,7 +2439,7 @@ async function syncBulkTradesToSheets(trades, onProgress) {
   const CHUNK = 200;
   for (let i = 0; i < newRows.length; i += CHUNK) {
     const chunk = newRows.slice(i, i + CHUNK);
-    await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:Y:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+    await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:Z:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
       values: chunk
     });
     if (onProgress) onProgress(Math.min(i + CHUNK, newRows.length), newRows.length);
@@ -2445,7 +2541,8 @@ async function syncPreMarketToSheets(pm) {
     g('sd-epdvah'), g('sd-epdval'), g('sd-epdpoc'),
     g('sd-pwvah'), g('sd-pwval'), g('sd-pwpoc'),
     g('sd-cwvah'), g('sd-cwval'), g('sd-cwpoc'),
-    g('sd-epwvah'), g('sd-epwval'), g('sd-epwpoc')
+    g('sd-epwvah'), g('sd-epwval'), g('sd-epwpoc'),
+    pm.ydayReview || ''
   ];
 
   const existing = await sheetsRequest('GET', `/values/${SHEET_PREMARKET}!A:A`);
@@ -2453,9 +2550,9 @@ async function syncPreMarketToSheets(pm) {
   const rowIdx = dates.indexOf(pm.date);
 
   if (rowIdx > 0) {
-    await sheetsRequest('PUT', `/values/${SHEET_PREMARKET}!A${rowIdx+1}:AK${rowIdx+1}?valueInputOption=RAW`, { values: [row] });
+    await sheetsRequest('PUT', `/values/${SHEET_PREMARKET}!A${rowIdx+1}:AL${rowIdx+1}?valueInputOption=RAW`, { values: [row] });
   } else {
-    await sheetsRequest('POST', `/values/${SHEET_PREMARKET}!A:AK:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, { values: [row] });
+    await sheetsRequest('POST', `/values/${SHEET_PREMARKET}!A:AL:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, { values: [row] });
   }
 }
 
@@ -3029,6 +3126,8 @@ function saveTrade() {
     notes,
     sessionState: appState.sessionState,
     vix: appState.vix,
+    vixAtEntry: teVixSelected || appState.vixLevel || '',
+    vixAtEntryLabel: (VIX_CONFIG[teVixSelected || appState.vixLevel] || {}).label || '',
     redStateViolation: violationEl ? violationEl.textContent.includes('RED') : false
   };
 
@@ -3411,6 +3510,7 @@ function openTradeDetail(id) {
       <div class="risk-item"><div class="rlabel">T1 ₹</div><div class="rval positive">${t.target1||'—'}</div></div>
       <div class="risk-item"><div class="rlabel">T2 ₹</div><div class="rval positive">${t.target2||'—'}</div></div>
       <div class="risk-item"><div class="rlabel">Lots</div><div class="rval">${t.lots}</div></div>
+      <div class="risk-item"><div class="rlabel">VIX @ Entry</div><div class="rval">${t.vixAtEntryLabel || t.vixAtEntry || '—'}</div></div>
     </div>
     ${reentryHTML}
     ${t.notes ? `<div class="card" style="margin-top:12px;"><div class="card-title">Notes</div><div style="font-size:13px;line-height:1.6;">${t.notes}</div></div>` : ''}
@@ -3884,6 +3984,7 @@ function savePreMarket() {
     keyLevels: document.getElementById('keyLevels').value,
     scenarios: document.getElementById('scenarios').value,
     sankalpa: document.getElementById('sankalpa').value,
+    ydayReview: document.getElementById('ydayReview').value,
     pdh: g('sd-pdh'), pdl: g('sd-pdl'),
     pdClose: g('sd-pdclose'), preOpen: g('sd-preopen'),
     pdVah: g('sd-pdvah'), pdVal: g('sd-pdval'), pdPoc: g('sd-pdpoc'),
@@ -4050,6 +4151,23 @@ function openModal(id) {
 function closeModal(id) {
   document.getElementById(id).classList.remove('open');
   document.body.style.overflow = '';
+}
+
+// Opens the trade entry modal and pre-fills VIX-at-entry with the current
+// day-level band as a starting point — tap a different band if VIX has
+// moved since the morning regime read.
+let teVixSelected = null;
+function openTradeEntryModal() {
+  openModal('modal-trade-entry');
+  const level = appState.vixLevel || 'v2';
+  setTeVix(level, true);
+}
+
+function setTeVix(level, silent) {
+  teVixSelected = level;
+  document.querySelectorAll('#te-vix .vix-btn-sm').forEach(b => b.className = 'vix-btn-sm');
+  const el = document.getElementById('tevix-' + level);
+  if (el) el.classList.add('sel-' + level);
 }
 
 // Close modal on overlay click
