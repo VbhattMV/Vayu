@@ -4956,7 +4956,7 @@ function getWeekStart() {
 
 function updateCircuitBreakers() {
   const today = getTodayStr(), week = getWeekStart(), month = today.substring(0,7);
-  const sumLoss = (filter) => Math.min(0, appState.trades.filter(filter).reduce((a,t) => a + t.pnl, 0));
+  const sumLoss = (filter) => Math.min(0, appState.trades.filter(t => !t.historical && filter(t)).reduce((a,t) => a + t.pnl, 0));
   const dayLoss   = sumLoss(t => t.date === today);
   const weekLoss  = sumLoss(t => t.date >= week);
   const monthLoss = sumLoss(t => t.date.startsWith(month));
@@ -5000,7 +5000,7 @@ function renderExpectancyTracker() {
   const el = document.getElementById('expectancyTracker');
   if (!el) return;
   const month = getTodayStr().substring(0,7);
-  const mt = appState.trades.filter(t => t.date.startsWith(month));
+  const mt = appState.trades.filter(t => t.date.startsWith(month) && !t.historical);
   if (!mt.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">No trades this month yet.</div>'; return; }
   const wins = mt.filter(t => t.outcome === 'Win');
   const losses = mt.filter(t => t.outcome === 'Loss');
@@ -5026,7 +5026,7 @@ function renderExpectancyTracker() {
 // ═══════════════════════════════════════════════════
 function openWeeklyReview() {
   const week = getWeekStart(), today = getTodayStr();
-  const wt = appState.trades.filter(t => t.date >= week && t.date <= today);
+  const wt = appState.trades.filter(t => t.date >= week && t.date <= today && !t.historical);
   const el = document.getElementById('weeklyReviewData');
   if (!el) { openModal('modal-weekly-review'); return; }
   if (!wt.length) { el.innerHTML = '<div style="color:var(--text-muted);font-size:12px;margin-bottom:12px;">No trades this week.</div>'; openModal('modal-weekly-review'); return; }
