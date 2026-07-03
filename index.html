@@ -1679,6 +1679,17 @@
     <div class="modal-handle"></div>
     <h3>Log Trade</h3>
 
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="te-date">
+      </div>
+      <div class="field">
+        <label>Time</label>
+        <input type="time" id="te-time">
+      </div>
+    </div>
+
     <!-- Option Premium Prices -->
     <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Option Premium Prices</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
@@ -3242,8 +3253,14 @@ function saveTrade() {
 
   const trade = {
     id: Date.now(),
-    date: getTodayStr(),
-    time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+    date: document.getElementById('te-date')?.value || getTodayStr(),
+    time: (() => {
+      const t = document.getElementById('te-time')?.value;
+      if (!t) return new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+      const [h, m] = t.split(':');
+      const hour12 = ((+h % 12) || 12);
+      return `${hour12}:${m} ${+h < 12 ? 'AM' : 'PM'}`;
+    })(),
     entry, exit, stop, target1, target2, lots,
     direction: dir,
     grade: gradeEl.textContent,
@@ -3296,7 +3313,7 @@ function saveTrade() {
 }
 
 function resetTradeEntryForm() {
-  ['te-entry','te-exit','te-stop','te-target1','te-target2','te-lots',
+  ['te-entry','te-exit','te-stop','te-target1','te-target2','te-lots','te-date','te-time',
    'te-re-entry','te-re-exit','te-re-stop','te-re-target1','te-re-target2','te-re-lots','te-notes'].forEach(id => {
     const el = document.getElementById(id); if (el) el.value = '';
   });
@@ -4480,6 +4497,13 @@ function openTradeEntryModal() {
   const level = appState.vixLevel || 'v2';
   setTeVix(level, true);
   updateTeAdrHint();
+  const dateEl = document.getElementById('te-date');
+  const timeEl = document.getElementById('te-time');
+  if (dateEl && !dateEl.value) dateEl.value = getTodayStr();
+  if (timeEl && !timeEl.value) {
+    const now = new Date();
+    timeEl.value = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+  }
 }
 
 function setTeVix(level, silent) {
