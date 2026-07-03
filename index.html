@@ -2131,6 +2131,37 @@ function handleGoogleSignOut() {
   updateGoogleAuthUI(false);
 }
 
+// Attempts to refresh the access token without showing a sign-in popup —
+// works when the browser still has an active Google session and hasn't
+// blocked third-party cookies for it. Best-effort: if it fails, the
+// merge-on-load logic above is the real safety net that keeps trades from
+// being lost, this just reduces how often you see the "signed out" wall
+// at all during an active session.
+function attemptSilentRefresh() {
+  if (!gConfig.clientId || !syncEnabled) return;
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: gConfig.clientId,
+    scope: SCOPES,
+    callback: (resp) => {
+      if (resp.error) return; // will fall back to interactive sign-in when next needed
+      gConfig.accessToken = resp.access_token;
+      gConfig.tokenExpiry = Date.now() + (resp.expires_in - 60) * 1000;
+      localStorage.setItem('vayu_token', gConfig.accessToken);
+      localStorage.setItem('vayu_tokenExpiry', gConfig.tokenExpiry.toString());
+    }
+  });
+  client.requestAccessToken({ prompt: '' });
+}
+
+// Check every minute; refresh proactively once within 10 minutes of expiry
+// so a continuous trading session doesn't hit the wall mid-entry.
+setInterval(() => {
+  if (syncEnabled && gConfig.accessToken && gConfig.tokenExpiry) {
+    const minutesLeft = (gConfig.tokenExpiry - Date.now()) / 60000;
+    if (minutesLeft > 0 && minutesLeft < 10) attemptSilentRefresh();
+  }
+}, 60000);
+
 function updateGoogleAuthUI(signedIn) {
   const signInBtn = document.getElementById('googleSignInBtn');
   const signOutBtn = document.getElementById('googleSignOutBtn');
@@ -2339,7 +2370,7 @@ async function loadFromSheets() {
   // Parse trades
   const tradeRows = (tradesData && tradesData.values) || [];
   if (tradeRows.length) {
-    appState.trades = tradeRows.map(r => ({
+    const sheetTrades = tradeRows.map(r => ({
       id: parseInt(r[0]) || Date.now(),
       date: r[1] || '',
       time: r[2] || '',
@@ -2372,6 +2403,20 @@ async function loadFromSheets() {
       rangeRatioAtEntry: r[26] ? parseInt(r[26]) : null,
       historical: r[27] === 'YES'
     }));
+
+    // MERGE, don't overwrite: any local trade whose ID isn't in the Sheet
+    // yet (e.g. logged while the token was expired, sync never completed)
+    // is kept rather than discarded. This is what was silently destroying
+    // trades on re-sign-in before — signing back in would fetch the Sheet
+    // and wipe out anything logged in the gap. Sheet is still the source
+    // of truth for anything it already has (in case of edits/deletes made
+    // elsewhere), but never for trades it simply hasn't seen yet.
+    const sheetIds = new Set(sheetTrades.map(t => String(t.id)));
+    const localOnly = (appState.trades || []).filter(t => !sheetIds.has(String(t.id)));
+    appState.trades = sheetTrades.concat(localOnly);
+    if (localOnly.length) {
+      showToast(`${localOnly.length} trade(s) logged while signed out — syncing now.`);
+    }
 
     // NOTE: this used to unconditionally recompute every live trade's P&L
     // as (exit-entry)*lots*65 on every single load, discarding whatever
