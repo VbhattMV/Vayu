@@ -1287,6 +1287,7 @@
         <div class="pill" onclick="selectDirection('Long')">Long (CE Buy)</div>
         <div class="pill" onclick="selectDirection('Short')">Short (PE Buy)</div>
       </div>
+      <div id="biasAdvisory" style="display:none;margin-top:10px;padding:10px;border-radius:10px;font-size:12px;line-height:1.6;"></div>
     </div>
 
     <div class="risk-display" id="riskDisplay">
@@ -1319,6 +1320,8 @@
     <div id="riskAlert" class="alert"></div>
 
     <button class="btn btn-gold mt12" onclick="openTradeEntryModal()">Execute & Log Trade</button>
+    <button class="btn btn-outline mt12" onclick="rejectTrade()">Trade Rejected — Clear</button>
+    <div id="rejectedTodayCount" style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:6px;"></div>
   </div>
 
 </div>
@@ -2067,6 +2070,8 @@ const SHEET_RANGES = 'DailyRanges';
 const RANGE_HEADERS = ['Date','High','Low','Range'];
 const SHEET_VIXHIST = 'VixHistory';
 const VIXHIST_HEADERS = ['Date','High','Low'];
+const SHEET_REJECTED = 'RejectedTrades';
+const REJECTED_HEADERS = ['Date','Time','Direction'];
 
 const TRADE_HEADERS = ['ID','Date','Time','Direction','Grade','Setup','Outcome','EntryPremium','ExitPremium','SLPremium','Target1Premium','Target2Premium','Lots','PnL','RValue','VIX','SessionState','RedViolation','ReentryAllowed','Reentry_Entry','Reentry_Exit','Reentry_Lots','Reentry_Outcome','Reentry_PnL','Notes','VixAtEntry','RangeRatioAtEntry','Historical'];
 const SESSION_HEADERS = ['Date','State','VIX','TradeCount','DayPnL','ConsecutiveLosses','PostMarket_Integration','PostMarket_Missed','PostMarket_Tomorrow'];
@@ -2269,7 +2274,7 @@ async function initSheetStructure() {
   if (!meta) return;
 
   const existing = (meta.sheets || []).map(s => s.properties.title);
-  const needed = [SHEET_TRADES, SHEET_SESSIONS, SHEET_SETTINGS, SHEET_PREMARKET, SHEET_RANGES, SHEET_VIXHIST];
+  const needed = [SHEET_TRADES, SHEET_SESSIONS, SHEET_SETTINGS, SHEET_PREMARKET, SHEET_RANGES, SHEET_VIXHIST, SHEET_REJECTED];
   const toCreate = needed.filter(n => !existing.includes(n));
 
   if (toCreate.length > 0) {
@@ -2286,7 +2291,8 @@ async function initSheetStructure() {
     { range: `${SHEET_SETTINGS}!A1`, values: [SETTINGS_HEADERS] },
     { range: `${SHEET_PREMARKET}!A1`, values: [PREMARKET_HEADERS] },
     { range: `${SHEET_RANGES}!A1`, values: [RANGE_HEADERS] },
-    { range: `${SHEET_VIXHIST}!A1`, values: [VIXHIST_HEADERS] }
+    { range: `${SHEET_VIXHIST}!A1`, values: [VIXHIST_HEADERS] },
+    { range: `${SHEET_REJECTED}!A1`, values: [REJECTED_HEADERS] }
   ];
 
   await sheetsRequest('POST', '/values:batchUpdate', {
@@ -2337,13 +2343,14 @@ async function loadFromSheets() {
     `${SHEET_SETTINGS}!A2:B`,
     `${SHEET_PREMARKET}!A2:AL`,
     `${SHEET_RANGES}!A2:D`,
-    `${SHEET_VIXHIST}!A2:C`
+    `${SHEET_VIXHIST}!A2:C`,
+    `${SHEET_REJECTED}!A2:C`
   ];
 
   const res = await sheetsRequest('GET', `/values:batchGet?ranges=${ranges.map(encodeURIComponent).join('&ranges=')}`);
   if (!res) return;
 
-  const [tradesData, sessionsData, settingsData, premarketData, rangesData, vixHistData] = res.valueRanges || [];
+  const [tradesData, sessionsData, settingsData, premarketData, rangesData, vixHistData, rejectedData] = res.valueRanges || [];
 
   // Parse daily range history
   const rangeRows = (rangesData && rangesData.values) || [];
@@ -2365,6 +2372,14 @@ async function loadFromSheets() {
       .filter(d => !isNaN(d.high) && !isNaN(d.low))
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(-20);
+  }
+
+  // Parse rejected-trade log (append-only, not capped/rolling)
+  const rejectedRows = (rejectedData && rejectedData.values) || [];
+  if (rejectedRows.length) {
+    appState.rejectedTrades = rejectedRows
+      .filter(r => r[0])
+      .map(r => ({ date: r[0], time: r[1] || '', direction: r[2] || '' }));
   }
 
   // Parse trades
@@ -2474,13 +2489,24 @@ async function loadFromSheets() {
       keyLevels: todayPm[11] || '',
       scenarios: todayPm[12] || '',
       sankalpa: todayPm[13] || '',
-      ydayReview: todayPm[36] || ''
+      ydayReview: todayPm[36] || '',
+      htfBias: todayPm[10] || '',
+      bias: todayPm[20] || '',
+      biasReason: todayPm[21] || ''
     };
     // Restore text fields
     if (document.getElementById('keyLevels')) document.getElementById('keyLevels').value = appState.premarket.keyLevels;
     if (document.getElementById('scenarios')) document.getElementById('scenarios').value = appState.premarket.scenarios;
     if (document.getElementById('sankalpa')) document.getElementById('sankalpa').value = appState.premarket.sankalpa;
     if (document.getElementById('ydayReview')) document.getElementById('ydayReview').value = appState.premarket.ydayReview;
+    // Restore HTF Bias pill selection and computed Opening Bias display
+    if (appState.premarket.htfBias) {
+      document.querySelectorAll('#htfBias .pill').forEach(p => {
+        p.classList.toggle('sel', appState.premarket.htfBias.split(',').map(s=>s.trim()).includes(p.textContent));
+      });
+    }
+    if (document.getElementById('biasLabel') && appState.premarket.bias) document.getElementById('biasLabel').textContent = appState.premarket.bias;
+    if (document.getElementById('biasReason') && appState.premarket.biasReason) document.getElementById('biasReason').textContent = appState.premarket.biasReason;
 
     // Restore session data numeric fields
     const sdMap = {
@@ -2528,6 +2554,7 @@ async function loadFromSheets() {
   updateGoogleAuthUI(true);
   updateSyncUI('ok', 'Synced');
   renderAdrHeader();
+  updateRejectedTodayCount();
   saveData(); // mirror what was just loaded from Sheets into local storage,
               // so a future offline/fresh load isn't stuck on stale local data
   showToast('Data loaded from Google Sheets');
@@ -2677,6 +2704,16 @@ async function syncVixHistoryToSheets() {
   });
 }
 
+// Append-only — unlike range/VIX history this isn't a capped rolling
+// window, it's a running log of discrete rejection events, so each new
+// one is just added to the end rather than clearing and rewriting.
+async function syncRejectedTradeToSheets(rec) {
+  if (!syncEnabled) return;
+  await sheetsRequest('POST', `/values/${SHEET_REJECTED}!A:C:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+    values: [[rec.date, rec.time, rec.direction]]
+  });
+}
+
 async function syncPreMarketToSheets(pm) {
   if (!syncEnabled) return;
 
@@ -2784,6 +2821,7 @@ let appState = {
   premarket: {},
   dailyRanges: [],
   vixHistory: [],
+  rejectedTrades: [],
   dailySessions: [],
   psychScores: {},
   confluenceScore: 0,
@@ -2864,6 +2902,7 @@ function init() {
   if (appState.vixLevel) setVixExt(appState.vixLevel, true);
   else setVixExt('v2', true);
   renderAdrHeader();
+  updateRejectedTodayCount();
   setInterval(function() { updateSessionWindows(); }, 30000);
 
   // v5: restore any unsaved drafts
@@ -2881,6 +2920,7 @@ function loadData() {
       appState.settings = { ...appState.settings, ...(d.settings || {}) };
       appState.dailyRanges = d.dailyRanges || [];
       appState.vixHistory = d.vixHistory || [];
+      appState.rejectedTrades = d.rejectedTrades || [];
 
       // NOTE: the automatic P&L recalculation that used to run here has
       // been removed — it unconditionally overwrote every live trade's
@@ -2943,7 +2983,8 @@ function saveData() {
       dailySessions: appState.dailySessions,
       settings: appState.settings,
       dailyRanges: appState.dailyRanges,
-      vixHistory: appState.vixHistory
+      vixHistory: appState.vixHistory,
+      rejectedTrades: appState.rejectedTrades
     }));
   } catch(e) { console.log('Save error:', e); }
 }
@@ -3236,6 +3277,84 @@ function selectDirection(dir) {
   });
   calcRisk();
   saveTradeChecklistDraft();
+  renderBiasAdvisory(dir);
+}
+
+// Classifies a bias string into bullish/bearish/neutral, and whether it
+// carries a "caution" qualifier — used for both Opening Bias (computed)
+// and HTF Bias (your manual 30-min read).
+function classifyBias(biasText) {
+  if (!biasText || biasText === '—') return { dir: null, caution: false };
+  const t = biasText.toUpperCase();
+  const caution = t.includes('CAUTION');
+  if (t.includes('BULLISH')) return { dir: 'Long', caution };
+  if (t.includes('BEARISH')) return { dir: 'Short', caution };
+  return { dir: null, caution: false }; // RANGE BOUND, NEUTRAL, Ambiguous, etc.
+}
+
+// Advisory only — never blocks anything. Purpose is purely to surface
+// your own morning read at the moment of a real decision, so a trade
+// against your own structure is a conscious choice, not a blind spot.
+function renderBiasAdvisory(dir) {
+  const box = document.getElementById('biasAdvisory');
+  if (!box) return;
+
+  const pm = appState.premarket || {};
+  const opening = classifyBias(pm.bias);
+  const htf = classifyBias(pm.htfBias);
+
+  if (!pm.bias && !pm.htfBias) {
+    box.style.display = 'block';
+    box.style.background = 'var(--surface2)';
+    box.style.border = '1px solid var(--border2)';
+    box.innerHTML = `No Opening Bias or HTF Bias recorded yet today — fill in Pre-Market for a structural cross-check against this ${dir} entry.`;
+    return;
+  }
+
+  const lines = [];
+
+  // Opening Bias line
+  if (!pm.bias || pm.bias === '—') {
+    lines.push(`Opening Bias: not calculated (enter PD POC / EPD POC / Pre-Open in Pre-Market).`);
+  } else if (opening.dir === null) {
+    lines.push(`Opening Bias is <strong>${pm.bias}</strong> — no clear directional lean either way today, so this ${dir} isn't contradicted by it, but isn't confirmed by it either. Setup quality carries more weight on a day like this.`);
+  } else if (opening.dir === dir) {
+    lines.push(opening.caution
+      ? `Opening Bias <strong>${pm.bias}</strong> agrees with this ${dir} direction, but with a caution flag — structure supports it, though not cleanly. Worth double-checking the specific reason logged in Pre-Market.`
+      : `Opening Bias <strong>${pm.bias}</strong> agrees with this ${dir} — structurally aligned.`);
+  } else {
+    lines.push(`⚠ Opening Bias is <strong>${pm.bias}</strong> — this ${dir} goes against it. Not a reason to skip automatically, but worth being clear-eyed that you're trading against your own morning structural read.`);
+  }
+
+  // HTF Bias line
+  if (!pm.htfBias) {
+    lines.push(`HTF Bias: not set today.`);
+  } else if (htf.dir === null) {
+    lines.push(`HTF Bias is <strong>${pm.htfBias}</strong> — neutral/ambiguous, doesn't confirm or contradict this ${dir}.`);
+  } else if (htf.dir === dir) {
+    lines.push(`HTF Bias <strong>${pm.htfBias}</strong> also agrees with this ${dir}.`);
+  } else {
+    lines.push(`⚠ HTF Bias is <strong>${pm.htfBias}</strong> — also against this ${dir}.`);
+  }
+
+  // Overall framing
+  const bothAgree = opening.dir === dir && htf.dir === dir;
+  const bothAgainst = (opening.dir && opening.dir !== dir) && (htf.dir && htf.dir !== dir);
+
+  box.style.display = 'block';
+  if (bothAgree) {
+    box.style.background = 'rgba(34,197,94,0.08)';
+    box.style.border = '1px solid var(--green)';
+  } else if (bothAgainst) {
+    box.style.background = 'rgba(239,68,68,0.08)';
+    box.style.border = '1px solid var(--red)';
+    lines.unshift(`<strong>Both your bias reads today point away from this direction.</strong>`);
+  } else {
+    box.style.background = 'var(--gold-glow)';
+    box.style.border = '1px solid var(--gold-dim)';
+  }
+
+  box.innerHTML = lines.join('<br><br>');
 }
 
 // ═══════════════════════════════════════════════════
@@ -3450,7 +3569,39 @@ function resetTradeChecklistForm() {
   });
   const alert = document.getElementById('riskAlert');
   if (alert) alert.className = 'alert';
+  const bias = document.getElementById('biasAdvisory');
+  if (bias) bias.style.display = 'none';
   clearTradeChecklistDraft();
+}
+
+// One-tap reset when a setup doesn't confirm — clears the checklist so
+// the opposite direction can be evaluated fresh, and logs the rejection
+// (date/time/whichever direction was being considered, if any) so the
+// pattern of how often each side gets rejected before the other triggers
+// is visible later, rather than just disappearing.
+function rejectTrade() {
+  const rec = {
+    date: getTodayStr(),
+    time: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+    direction: appState.tradeDirection || 'Not specified'
+  };
+  appState.rejectedTrades = appState.rejectedTrades || [];
+  appState.rejectedTrades.push(rec);
+  if (appState.rejectedTrades.length > 500) appState.rejectedTrades = appState.rejectedTrades.slice(-500);
+  saveData();
+  syncRejectedTradeToSheets(rec);
+
+  resetTradeChecklistForm();
+  updateRejectedTodayCount();
+  showToast('Cleared — logged as rejected.');
+}
+
+function updateRejectedTodayCount() {
+  const el = document.getElementById('rejectedTodayCount');
+  if (!el) return;
+  const today = getTodayStr();
+  const n = (appState.rejectedTrades || []).filter(r => r.date === today).length;
+  el.textContent = n > 0 ? `${n} setup${n > 1 ? 's' : ''} rejected today` : '';
 }
 
 // ═══════════════════════════════════════════════════
@@ -4238,7 +4389,8 @@ function savePreMarket() {
     cwVah: g('sd-cwvah'), cwVal: g('sd-cwval'), cwPoc: g('sd-cwpoc'),
     epwVah: g('sd-epwvah'), epwVal: g('sd-epwval'), epwPoc: g('sd-epwpoc'),
     gap: (g('sd-preopen') && g('sd-pdclose')) ? (g('sd-preopen') - g('sd-pdclose')).toFixed(1) : null,
-    bias: document.getElementById('biasLabel') ? document.getElementById('biasLabel').textContent : ''
+    bias: document.getElementById('biasLabel') ? document.getElementById('biasLabel').textContent : '',
+    htfBias: (document.querySelector('#htfBias .pill.sel') || {}).textContent || ''
   };
   saveData();
   syncPreMarketToSheets(appState.premarket);
