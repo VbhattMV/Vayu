@@ -679,6 +679,8 @@
       <button class="btn btn-gold" style="padding:8px;font-size:12px;" onclick="confirmSuggestedDayType()">✓ Confirm this classification</button>
     </div>
     <div id="adrStatus" style="font-size:10px;color:var(--text-muted);margin-top:8px;"></div>
+
+    <div id="pcr-widget" style="margin-top:12px;padding:10px 12px;background:var(--surface2);border-radius:10px;font-size:11px;color:var(--text-dim);line-height:1.6;">Waiting for PCR data…</div>
   </div>
 
   <!-- DAY CLASSIFIER -->
@@ -2908,6 +2910,14 @@ function init() {
   // v5: restore any unsaved drafts
   restoreTradeChecklistDraft();
   restoreTradeEntryDraft();
+
+  // Fyers guardrail worker — checklist/direction mismatch check + PCR/OI polling
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+  setInterval(checkGuardrail, 60000);
+  setInterval(pollPCR, 120000);
+  pollPCR();
 }
 
 function loadData() {
@@ -2987,6 +2997,107 @@ function saveData() {
       rejectedTrades: appState.rejectedTrades
     }));
   } catch(e) { console.log('Save error:', e); }
+}
+
+// ============================================================
+// FYERS GUARDRAIL WORKER INTEGRATION
+// Read-only monitoring: checks that what's on Fyers matches what's
+// planned/logged in Vayu, and pulls live PCR/OI data. Never places,
+// modifies, or touches an order.
+// ============================================================
+const VAYU_WORKER_URL = 'https://vayu-guardrail.mvvaishnavi.workers.dev';
+const VAYU_SHARED_KEY = 'vayu-guard-9f2x';
+
+async function pushStateToGuardrail() {
+  try {
+    await fetch(`${VAYU_WORKER_URL}/state`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Vayu-Key': VAYU_SHARED_KEY },
+      body: JSON.stringify({
+        checklistDone: !!(appState.premarket && appState.premarket.date === getTodayStr()),
+        direction: appState.tradeDirection || null
+      })
+    });
+  } catch (e) { console.log('Guardrail push failed (offline?):', e); }
+}
+
+let guardrailNotifiedAt = 0;
+async function checkGuardrail() {
+  try {
+    const resp = await fetch(`${VAYU_WORKER_URL}/check`, {
+      headers: { 'X-Vayu-Key': VAYU_SHARED_KEY }
+    });
+    const data = await resp.json();
+    if (data.mismatch && Date.now() - guardrailNotifiedAt > 5 * 60 * 1000) {
+      guardrailNotifiedAt = Date.now();
+      fireGuardrailAlert(data.reason);
+    }
+  } catch (e) { /* fail silent, try again next interval */ }
+}
+
+function fireGuardrailAlert(reason) {
+  if (typeof showToast === 'function') showToast('⚠ GUARDRAIL: ' + reason);
+  else alert('⚠ VAYU GUARDRAIL: ' + reason);
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification('Vayu Guardrail', { body: reason });
+  }
+}
+
+let latestPCRData = null;
+async function pollPCR() {
+  try {
+    const resp = await fetch(`${VAYU_WORKER_URL}/pcr`, {
+      headers: { 'X-Vayu-Key': VAYU_SHARED_KEY }
+    });
+    const data = await resp.json();
+    if (!data.error) {
+      latestPCRData = data;
+      renderPCRWidget(data);
+    }
+  } catch (e) { /* fail silent, try again next interval */ }
+}
+
+function renderPCRWidget(data) {
+  const el = document.getElementById('pcr-widget');
+  if (!el) return;
+  const readings = data.history.map(h => h.pcr).join(' → ');
+  el.innerHTML = `
+    <div><strong>PCR:</strong> ${data.latest.pcr ?? '-'}</div>
+    <div><strong>OI Trend:</strong> ${data.trend}</div>
+    <div style="font-size:0.8em;opacity:0.7;">Last ${data.history.length}: ${readings}</div>
+  `;
+}
+
+async function pushTradeIdsToGuardrail() {
+  try {
+    const tradeIds = (appState.trades || [])
+      .filter(t => t.date === getTodayStr())
+      .map(t => String(t.id));
+    await fetch(`${VAYU_WORKER_URL}/trades`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Vayu-Key': VAYU_SHARED_KEY },
+      body: JSON.stringify({ tradeIds })
+    });
+  } catch (e) { console.log('Trade ID push failed (offline?):', e); }
+}
+
+async function checkReconcile() {
+  try {
+    const resp = await fetch(`${VAYU_WORKER_URL}/reconcile`, {
+      headers: { 'X-Vayu-Key': VAYU_SHARED_KEY }
+    });
+    const data = await resp.json();
+    if (data.missingCount > 0) {
+      const summary = data.missing.map(m => `${m.side} ${m.symbol} x${m.qty} @ ${m.price}`).join('\n');
+      const msg = `${data.missingCount} trade(s) on Fyers not logged in Vayu:\n${summary}`;
+      if (typeof showToast === 'function') showToast('⚠ ' + msg);
+      else alert('⚠ ' + msg);
+    }
+    return data;
+  } catch (e) {
+    console.log('Reconcile check failed (offline?):', e);
+    return null;
+  }
 }
 
 // Historical-trade check — deliberately does NOT consult t.historical at
@@ -3278,6 +3389,7 @@ function selectDirection(dir) {
   calcRisk();
   saveTradeChecklistDraft();
   renderBiasAdvisory(dir);
+  pushStateToGuardrail();
 }
 
 // Classifies a bias string into bullish/bearish/neutral, and whether it
@@ -3465,6 +3577,7 @@ function saveTrade() {
   saveData();
   updateDayStats();
   updateDrawdownMonitor();
+  pushTradeIdsToGuardrail();
 
   syncTradeToSheets(trade);
   syncSessionToSheets();
@@ -4394,6 +4507,7 @@ function savePreMarket() {
   };
   saveData();
   syncPreMarketToSheets(appState.premarket);
+  pushStateToGuardrail();
 
   // Roll the just-completed prior session's range (PDH/PDL, entered fresh
   // each morning) into the ADR history — this is the real, final range for
