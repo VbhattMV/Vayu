@@ -681,7 +681,6 @@
     <div id="adrStatus" style="font-size:10px;color:var(--text-muted);margin-top:8px;"></div>
 
     <div id="pcr-widget" style="margin-top:12px;padding:10px 12px;background:var(--surface2);border-radius:10px;font-size:11px;color:var(--text-dim);line-height:1.6;">Waiting for PCR data…</div>
-    <div id="fyers-login-widget" style="margin-top:8px;"></div>
   </div>
 
   <!-- DAY CLASSIFIER -->
@@ -1104,6 +1103,8 @@
     <div class="section-dot"></div>
     <h2>Pre-Trade Checklist</h2>
   </div>
+
+  <div id="pcr-widget-trade" style="margin-bottom:12px;padding:10px 12px;background:var(--surface2);border-radius:10px;font-size:11px;color:var(--text-dim);line-height:1.6;">Waiting for PCR data…</div>
 
   <!-- 20-POINT CONFLUENCE SCORE -->
   <div class="card">
@@ -2919,7 +2920,6 @@ function init() {
   setInterval(checkGuardrail, 60000);
   setInterval(pollPCR, 120000);
   pollPCR();
-  handleFyersAuthCodeRedirect();
 }
 
 function loadData() {
@@ -3060,14 +3060,16 @@ async function pollPCR() {
 }
 
 function renderPCRWidget(data) {
-  const el = document.getElementById('pcr-widget');
-  if (!el) return;
   const readings = data.history.map(h => h.pcr).join(' → ');
-  el.innerHTML = `
+  const html = `
     <div><strong>PCR:</strong> ${data.latest.pcr ?? '-'}</div>
     <div><strong>OI Trend:</strong> ${data.trend}</div>
     <div style="font-size:0.8em;opacity:0.7;">Last ${data.history.length}: ${readings}</div>
   `;
+  const el = document.getElementById('pcr-widget');
+  if (el) el.innerHTML = html;
+  const el2 = document.getElementById('pcr-widget-trade');
+  if (el2) el2.innerHTML = html;
 }
 
 async function pushTradeIdsToGuardrail() {
@@ -3099,64 +3101,6 @@ async function checkReconcile() {
   } catch (e) {
     console.log('Reconcile check failed (offline?):', e);
     return null;
-  }
-}
-
-// ============================================================
-// DAILY FYERS LOGIN (manual handoff — once each morning)
-// You click a link, log into Fyers normally in your own browser,
-// and land back here with ?auth_code=... in the URL. This detects
-// that, submits it to the Worker, and cleans the URL.
-// ============================================================
-const FYERS_APP_ID = '33MLR70J0P';
-const FYERS_APP_TYPE = '100';
-const FYERS_REDIRECT_URI = 'https://vbhattmv.github.io/Vayu/';
-
-function fyersLoginUrl() {
-  const clientId = `${FYERS_APP_ID}-${FYERS_APP_TYPE}`;
-  return `https://api-t1.fyers.in/api/v3/generate-authcode?client_id=${clientId}&redirect_uri=${encodeURIComponent(FYERS_REDIRECT_URI)}&response_type=code&state=vayu`;
-}
-
-function renderFyersLoginWidget(status) {
-  const el = document.getElementById('fyers-login-widget');
-  if (!el) return;
-  if (status === 'ok') {
-    el.innerHTML = `<div style="font-size:11px;color:var(--green);">✓ Fyers login done for today</div>`;
-  } else if (status === 'checking') {
-    el.innerHTML = `<div style="font-size:11px;color:var(--text-muted);">Submitting Fyers login…</div>`;
-  } else {
-    el.innerHTML = `<a href="${fyersLoginUrl()}" style="display:inline-block;font-size:11px;color:var(--gold);text-decoration:underline;">→ Log into Fyers for today's guardrail checks</a>`;
-  }
-}
-
-async function handleFyersAuthCodeRedirect() {
-  const params = new URLSearchParams(window.location.search);
-  const authCode = params.get('auth_code');
-  if (!authCode) {
-    renderFyersLoginWidget('needed');
-    return;
-  }
-  renderFyersLoginWidget('checking');
-  try {
-    const resp = await fetch(`${VAYU_WORKER_URL}/submit-authcode`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Vayu-Key': VAYU_SHARED_KEY },
-      body: JSON.stringify({ authCode })
-    });
-    const data = await resp.json();
-    // clean the auth_code out of the visible URL either way
-    window.history.replaceState({}, document.title, window.location.pathname);
-    if (data.ok) {
-      renderFyersLoginWidget('ok');
-      if (typeof showToast === 'function') showToast('Fyers login complete for today');
-    } else {
-      renderFyersLoginWidget('needed');
-      if (typeof showToast === 'function') showToast('Fyers login failed: ' + (data.error || 'unknown error'));
-    }
-  } catch (e) {
-    window.history.replaceState({}, document.title, window.location.pathname);
-    renderFyersLoginWidget('needed');
-    console.log('Fyers auth code submit failed:', e);
   }
 }
 
@@ -3612,6 +3556,8 @@ function saveTrade() {
     vix: appState.vix,
     vixAtEntry: teVixSelected || appState.vixLevel || '',
     vixAtEntryLabel: (VIX_CONFIG[teVixSelected || appState.vixLevel] || {}).label || '',
+    pcrAtEntry: (latestPCRData && latestPCRData.latest) ? latestPCRData.latest.pcr : null,
+    oiTrendAtEntry: latestPCRData ? latestPCRData.trend : null,
     rangeRatioAtEntry: (() => {
       const h = parseFloat(document.getElementById('mc-high')?.value);
       const l = parseFloat(document.getElementById('mc-low')?.value);
@@ -3623,10 +3569,17 @@ function saveTrade() {
   };
 
   appState.trades.unshift(trade);
-  appState.tradeCount++;
-  appState.dayPnl += totalPnl;
 
-  updateSessionState(outcomeEl.textContent === 'Win' ? 'win' : outcomeEl.textContent === 'Loss' ? 'loss' : 'neutral');
+  // Only a trade actually dated TODAY should move the live session state
+  // (GREEN/YELLOW/RED), today's trade count, or today's P&L. Backfilling
+  // or correcting an older trade with a past date must not make it look
+  // like a fresh trade just happened right now.
+  const isTodayTrade = trade.date === getTodayStr();
+  if (isTodayTrade) {
+    appState.tradeCount++;
+    appState.dayPnl += totalPnl;
+    updateSessionState(outcomeEl.textContent === 'Win' ? 'win' : outcomeEl.textContent === 'Loss' ? 'loss' : 'neutral');
+  }
 
   const newCapital = appState.settings.capital + totalPnl;
   appState.settings.capital = newCapital;
@@ -4045,6 +3998,7 @@ function openTradeDetail(id) {
       <div class="risk-item"><div class="rlabel">T2 ₹</div><div class="rval positive">${t.target2||'—'}</div></div>
       <div class="risk-item"><div class="rlabel">Lots</div><div class="rval">${t.lots}</div></div>
       <div class="risk-item"><div class="rlabel">VIX @ Entry</div><div class="rval">${t.vixAtEntryLabel || t.vixAtEntry || '—'}</div></div>
+      <div class="risk-item"><div class="rlabel">PCR @ Entry</div><div class="rval">${t.pcrAtEntry ?? '—'}</div></div>
     </div>
     ${reentryHTML}
     ${t.notes ? `<div class="card" style="margin-top:12px;"><div class="card-title">Notes</div><div style="font-size:13px;line-height:1.6;">${t.notes}</div></div>` : ''}
