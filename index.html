@@ -2889,6 +2889,7 @@ function updateExpiryContext() {
 
 function init() {
   loadData();
+  checkForNewDaySessionReset();
   updateNavDate();
   updateSessionDisplay();
   updateDayStats();
@@ -2907,7 +2908,7 @@ function init() {
   else setVixExt('v2', true);
   renderAdrHeader();
   updateRejectedTodayCount();
-  setInterval(function() { updateSessionWindows(); }, 30000);
+  setInterval(function() { updateSessionWindows(); checkForNewDaySessionReset(); }, 30000);
 
   // v5: restore any unsaved drafts
   restoreTradeChecklistDraft();
@@ -2922,6 +2923,28 @@ function init() {
   pollPCR();
 }
 
+// Vayu often stays open in a browser tab across midnight rather than being
+// reopened fresh each morning. Without this check, yesterday's session
+// state (e.g. RED after 2 losses) would silently carry into a brand new
+// trading day until you manually hit "Reset Session". This runs on load
+// and every 30s, so it self-corrects shortly after midnight even if the
+// tab was never closed. Trade history and past days' recorded session
+// states are untouched — only the LIVE in-progress state resets.
+function checkForNewDaySessionReset() {
+  const today = getTodayStr();
+  if (appState.lastActiveDate === today) return;
+
+  appState.sessionState = 'NEUTRAL';
+  appState.tradeCount = 0;
+  appState.dayPnl = 0;
+  appState.consecutiveLosses = 0;
+  appState.lastActiveDate = today;
+
+  updateSessionDisplay();
+  updateDayStats();
+  saveData();
+}
+
 function loadData() {
   try {
     const saved = localStorage.getItem('vayu_data');
@@ -2933,6 +2956,7 @@ function loadData() {
       appState.dailyRanges = d.dailyRanges || [];
       appState.vixHistory = d.vixHistory || [];
       appState.rejectedTrades = d.rejectedTrades || [];
+      appState.lastActiveDate = d.lastActiveDate || null;
 
       // NOTE: the automatic P&L recalculation that used to run here has
       // been removed — it unconditionally overwrote every live trade's
@@ -2996,7 +3020,8 @@ function saveData() {
       settings: appState.settings,
       dailyRanges: appState.dailyRanges,
       vixHistory: appState.vixHistory,
-      rejectedTrades: appState.rejectedTrades
+      rejectedTrades: appState.rejectedTrades,
+      lastActiveDate: appState.lastActiveDate
     }));
   } catch(e) { console.log('Save error:', e); }
 }
