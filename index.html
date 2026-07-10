@@ -2943,6 +2943,15 @@ function checkForNewDaySessionReset() {
   updateSessionDisplay();
   updateDayStats();
   saveData();
+
+  // Force the Fyers login widget back to "needed" — otherwise it keeps
+  // showing yesterday's "done" status forever if this tab is never
+  // actually reloaded (just brought to foreground), silently letting
+  // guardrail checks fail in the background with no visible warning.
+  if (typeof renderFyersLoginWidget === 'function') {
+    renderFyersLoginWidget('needed');
+  }
+  tokenExpiryWarnedToday = false;
 }
 
 function loadData() {
@@ -3049,12 +3058,18 @@ async function pushStateToGuardrail() {
 }
 
 let guardrailNotifiedAt = 0;
+let tokenExpiryWarnedToday = false;
 async function checkGuardrail() {
   try {
     const resp = await fetch(`${VAYU_WORKER_URL}/check`, {
       headers: { 'X-Vayu-Key': VAYU_SHARED_KEY }
     });
     const data = await resp.json();
+    if (data.error && /valid token/i.test(data.error) && !tokenExpiryWarnedToday) {
+      tokenExpiryWarnedToday = true;
+      renderFyersLoginWidget('needed');
+      if (typeof showToast === 'function') showToast('⚠ Fyers login needed — guardrail checks are not running.');
+    }
     if (data.mismatch && Date.now() - guardrailNotifiedAt > 5 * 60 * 1000) {
       guardrailNotifiedAt = Date.now();
       fireGuardrailAlert(data.reason);
