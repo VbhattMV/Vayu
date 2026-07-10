@@ -681,6 +681,7 @@
     <div id="adrStatus" style="font-size:10px;color:var(--text-muted);margin-top:8px;"></div>
 
     <div id="pcr-widget" style="margin-top:12px;padding:10px 12px;background:var(--surface2);border-radius:10px;font-size:11px;color:var(--text-dim);line-height:1.6;">Waiting for PCR data…</div>
+    <div id="fyers-login-widget" style="margin-top:8px;"></div>
   </div>
 
   <!-- DAY CLASSIFIER -->
@@ -2921,6 +2922,7 @@ function init() {
   setInterval(checkGuardrail, 60000);
   setInterval(pollPCR, 120000);
   pollPCR();
+  handleFyersAuthCodeRedirect();
 }
 
 // Vayu often stays open in a browser tab across midnight rather than being
@@ -3141,6 +3143,63 @@ async function checkReconcile() {
   } catch (e) {
     console.log('Reconcile check failed (offline?):', e);
     return null;
+  }
+}
+
+// ============================================================
+// DAILY FYERS LOGIN (manual handoff — once each morning)
+// You click a link, log into Fyers normally in your own browser,
+// and land back here with ?auth_code=... in the URL. This detects
+// that, submits it to the Worker, and cleans the URL.
+// ============================================================
+const FYERS_APP_ID = '33MLR70J0P';
+const FYERS_APP_TYPE = '100';
+const FYERS_REDIRECT_URI = 'https://vbhattmv.github.io/Vayu/';
+
+function fyersLoginUrl() {
+  const clientId = `${FYERS_APP_ID}-${FYERS_APP_TYPE}`;
+  return `https://api-t1.fyers.in/api/v3/generate-authcode?client_id=${clientId}&redirect_uri=${encodeURIComponent(FYERS_REDIRECT_URI)}&response_type=code&state=vayu`;
+}
+
+function renderFyersLoginWidget(status) {
+  const el = document.getElementById('fyers-login-widget');
+  if (!el) return;
+  if (status === 'ok') {
+    el.innerHTML = `<div style="font-size:11px;color:var(--green);">✓ Fyers login done for today</div>`;
+  } else if (status === 'checking') {
+    el.innerHTML = `<div style="font-size:11px;color:var(--text-muted);">Submitting Fyers login…</div>`;
+  } else {
+    el.innerHTML = `<a href="${fyersLoginUrl()}" style="display:inline-block;font-size:11px;color:var(--gold);text-decoration:underline;">→ Log into Fyers for today's guardrail checks</a>`;
+  }
+}
+
+async function handleFyersAuthCodeRedirect() {
+  const params = new URLSearchParams(window.location.search);
+  const authCode = params.get('auth_code');
+  if (!authCode) {
+    renderFyersLoginWidget('needed');
+    return;
+  }
+  renderFyersLoginWidget('checking');
+  try {
+    const resp = await fetch(`${VAYU_WORKER_URL}/submit-authcode`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Vayu-Key': VAYU_SHARED_KEY },
+      body: JSON.stringify({ authCode })
+    });
+    const data = await resp.json();
+    window.history.replaceState({}, document.title, window.location.pathname);
+    if (data.ok) {
+      renderFyersLoginWidget('ok');
+      if (typeof showToast === 'function') showToast('Fyers login complete for today');
+    } else {
+      renderFyersLoginWidget('needed');
+      if (typeof showToast === 'function') showToast('Fyers login failed: ' + (data.error || 'unknown error'));
+    }
+  } catch (e) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    renderFyersLoginWidget('needed');
+    console.log('Fyers auth code submit failed:', e);
   }
 }
 
