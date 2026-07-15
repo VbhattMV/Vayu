@@ -1254,7 +1254,7 @@
       </div>
       <div class="checklist-item" onclick="toggleConfluence(this,1)">
         <div class="check-box"></div>
-        <div class="check-text">Breakout Continuation: confirmation received from indicator that retest held structure (mark done if not this setup)</div>
+        <div class="check-text">BO Cont.: confirmation received from indicator that retest held structure (mark done if not this setup)</div>
         <div class="check-score">+1</div>
       </div>
       <div class="checklist-item" onclick="toggleConfluence(this,1)">
@@ -1448,6 +1448,15 @@
   <div class="card">
     <div class="card-title">Performance by Grade</div>
     <div id="gradeBreakdown">
+      <div style="color:var(--text-muted);font-size:13px;">No trades logged yet.</div>
+    </div>
+  </div>
+
+  <!-- BY SETUP -->
+  <div class="card">
+    <div class="card-title">Performance by Setup</div>
+    <div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">Trades tagged with more than one setup count toward each.</div>
+    <div id="setupBreakdown">
       <div style="color:var(--text-muted);font-size:13px;">No trades logged yet.</div>
     </div>
   </div>
@@ -1804,15 +1813,13 @@
     <div class="field">
       <label>Setup Type (multi-select)</label>
       <div class="pill-row" id="te-setup" style="flex-wrap:wrap;">
-        <div class="pill" onclick="toggleMultiPill(this)">POC Tap</div>
-        <div class="pill" onclick="toggleMultiPill(this)">Virgin POC Sweep</div>
-        <div class="pill" onclick="toggleMultiPill(this)">VAH Tap</div>
-        <div class="pill" onclick="toggleMultiPill(this)">VAL Tap</div>
-        <div class="pill" onclick="toggleMultiPill(this)">POC Breakout</div>
-        <div class="pill" onclick="toggleMultiPill(this)">POC Breakdown</div>
-        <div class="pill" onclick="toggleMultiPill(this)">Breakout Continuation</div>
+        <div class="pill" onclick="toggleMultiPill(this)">BO Cont.</div>
+        <div class="pill" onclick="toggleMultiPill(this)">Failed BO fade</div>
+        <div class="pill" onclick="toggleMultiPill(this)">ExhRev</div>
+        <div class="pill" onclick="toggleMultiPill(this)">80% rule</div>
         <div class="pill" onclick="toggleMultiPill(this)">ORB</div>
-        <div class="pill" onclick="toggleMultiPill(this)">Other</div>
+        <div class="pill" onclick="toggleMultiPill(this)">Fast entry ORB</div>
+        <div class="pill" onclick="toggleMultiPill(this)">Fast entry ConsolRev</div>
       </div>
     </div>
 
@@ -3114,6 +3121,8 @@ function fireGuardrailAlert(reason) {
 }
 
 let latestPCRData = null;
+let lastPCRSuccessTs = null;
+let pcrErrorCount = 0;
 async function pollPCR() {
   try {
     const resp = await fetch(`${VAYU_WORKER_URL}/pcr`, {
@@ -3122,9 +3131,23 @@ async function pollPCR() {
     const data = await resp.json();
     if (!data.error) {
       latestPCRData = data;
-      renderPCRWidget(data);
+      lastPCRSuccessTs = Date.now();
+      pcrErrorCount = 0;
+      renderPCRWidget(data, null);
+    } else {
+      pcrErrorCount++;
+      renderPCRWidget(latestPCRData, data.error);
+      if (pcrErrorCount === 3 && typeof showToast === 'function') {
+        showToast('⚠ PCR hasn\'t refreshed in 6+ min — check Fyers login.');
+      }
     }
-  } catch (e) { /* fail silent, try again next interval */ }
+  } catch (e) {
+    pcrErrorCount++;
+    renderPCRWidget(latestPCRData, e.message);
+    if (pcrErrorCount === 3 && typeof showToast === 'function') {
+      showToast('⚠ PCR hasn\'t refreshed in 6+ min — check Fyers login.');
+    }
+  }
 }
 
 let vixWorkerLive = false;
@@ -3148,13 +3171,26 @@ async function pollVix() {
   }
 }
 
-function renderPCRWidget(data) {
-  const readings = data.history.map(h => h.pcr).join(' → ');
-  const html = `
-    <div><strong>PCR:</strong> ${data.latest.pcr ?? '-'}</div>
-    <div><strong>OI Trend:</strong> ${data.trend}</div>
-    <div style="font-size:0.8em;opacity:0.7;">Last ${data.history.length}: ${readings}</div>
-  `;
+function renderPCRWidget(data, errorMsg) {
+  const ts = lastPCRSuccessTs ? new Date(lastPCRSuccessTs).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : null;
+
+  let html;
+  if (!data) {
+    html = errorMsg
+      ? `<div style="color:var(--red);font-size:0.85em;">⚠ PCR fetch failed: ${errorMsg}</div>`
+      : `<div style="color:var(--text-muted);font-size:0.85em;">Waiting for PCR…</div>`;
+  } else {
+    const readings = data.history.map(h => h.pcr).join(' → ');
+    const staleLine = errorMsg
+      ? `<div style="color:var(--red);font-size:0.75em;margin-top:2px;">⚠ Last fetch failed (${errorMsg}) — showing ${ts || 'earlier'} data, not live</div>`
+      : `<div style="font-size:0.7em;color:var(--text-muted);margin-top:2px;">as of ${ts || '—'}</div>`;
+    html = `
+      <div><strong>PCR:</strong> ${data.latest.pcr ?? '-'}</div>
+      <div><strong>OI Trend:</strong> ${data.trend}</div>
+      <div style="font-size:0.8em;opacity:0.7;">Last ${data.history.length}: ${readings}</div>
+      ${staleLine}
+    `;
+  }
   const el = document.getElementById('pcr-widget');
   if (el) el.innerHTML = html;
   const el2 = document.getElementById('pcr-widget-trade');
@@ -4096,7 +4132,7 @@ function renderTradeList() {
         <div class="trade-meta">
           <span>${t.date} ${t.time}</span>
           <span>${t.direction}</span>
-          <span>${t.entry} → ${t.exit}</span>
+          <span>${t.setup || '—'}</span>
           <span>${t.rValue}R</span>
           ${t.redStateViolation ? '<span style="color:var(--red);">⚠ RED violation</span>' : ''}
         </div>
@@ -4213,6 +4249,31 @@ function renderAnalytics() {
       </div>`;
   }).join('');
   document.getElementById('gradeBreakdown').innerHTML = gradeHTML || '<div style="color:var(--text-muted);font-size:13px;">No grade data.</div>';
+
+  // Setup breakdown — trades tagged with multiple setups (e.g. "ORB + Fast entry ORB")
+  // count toward each individual setup's stats
+  const setupMap = {};
+  trades.forEach(t => {
+    const tags = (t.setup || '').split(' + ').map(s => s.trim()).filter(Boolean);
+    tags.forEach(tag => {
+      if (!setupMap[tag]) setupMap[tag] = [];
+      setupMap[tag].push(t);
+    });
+  });
+  const setupHTML = Object.keys(setupMap)
+    .sort((a, b) => setupMap[b].length - setupMap[a].length)
+    .map(tag => {
+      const st = setupMap[tag];
+      const sw = st.filter(t => t.outcome === 'Win').length;
+      const spnl = st.reduce((a,t) => a + t.pnl, 0);
+      const swr = Math.round(sw / st.length * 100);
+      return `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);">
+          <div><div style="font-family:var(--mono);font-size:13px;color:var(--gold);">${tag}</div><div style="font-size:11px;color:var(--text-dim);">${st.length} trades · ${swr}% WR</div></div>
+          <div style="font-family:var(--mono);font-size:15px;color:${spnl>=0?'var(--green)':'var(--red)'};">${spnl>=0?'+':''}₹${Math.abs(spnl).toLocaleString('en-IN')}</div>
+        </div>`;
+    }).join('');
+  document.getElementById('setupBreakdown').innerHTML = setupHTML || '<div style="color:var(--text-muted);font-size:13px;">No setup data.</div>';
 
   // Leg analysis
   const withLeg2 = trades.filter(t => t.leg2 && t.leg2 !== 0);
