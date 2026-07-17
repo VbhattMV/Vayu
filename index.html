@@ -640,7 +640,7 @@
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
       <div class="field">
-        <label>Today's High (so far)</label>
+        <label>Today's High (so far) <span id="mcRangeTsLabel" style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;"></span></label>
         <input type="number" id="mc-high" placeholder="24080" oninput="updateLiveRange()">
       </div>
       <div class="field">
@@ -652,15 +652,15 @@
         <input type="number" id="mc-poc" placeholder="24045">
       </div>
       <div class="field">
-        <label>VIX High (so far)</label>
-        <input type="number" id="mc-vixhigh" placeholder="14.2" step="0.1">
+        <label>VIX High (so far) <span id="mcVixTsLabel" style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;"></span></label>
+        <input type="number" id="mc-vixhigh" placeholder="14.2" step="0.1" oninput="markMcVixInput()">
       </div>
       <div class="field">
         <label>VIX Low (so far)</label>
-        <input type="number" id="mc-vixlow" placeholder="12.8" step="0.1">
+        <input type="number" id="mc-vixlow" placeholder="12.8" step="0.1" oninput="markMcVixInput()">
       </div>
     </div>
-    <div style="font-size:10px;color:var(--text-muted);margin:-4px 0 10px;">Update these as VIX moves — carry them into tomorrow's Pre-Market as "Yesterday's VIX High/Low" once today closes, same as PDH/PDL.</div>
+    <div style="font-size:10px;color:var(--text-muted);margin:-4px 0 10px;">Update these as VIX moves — carry them into tomorrow's Pre-Market as "Yesterday's VIX High/Low" once today closes, same as PDH/PDL. Day-type suggestion below factors in what time you entered these — 0.75x ADR at 10 AM reads very differently than at 1:30 PM.</div>
 
     <div id="liveRangeBox" style="display:none;margin-top:4px;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text-dim);margin-bottom:4px;">
@@ -2851,6 +2851,8 @@ let appState = {
   sessionState: 'NEUTRAL',
   vix: 'normal',
   currentVix: null,
+  mcRangeInputTs: null,
+  mcVixInputTs: null,
   tradeCount: 0,
   consecutiveLosses: 0,
   dayPnl: 0,
@@ -3026,6 +3028,8 @@ function loadData() {
         appState.vix = todaySess.vix || 'normal';
         appState.vixLevel = todaySess.vixLevel || 'v2';
         appState.currentVix = todaySess.currentVix != null ? todaySess.currentVix : null;
+        appState.mcRangeInputTs = todaySess.mcRangeInputTs || null;
+        appState.mcVixInputTs = todaySess.mcVixInputTs || null;
         appState.dayType = todaySess.dayType || '';
         appState.tradeCount = todaySess.tradeCount || 0;
         appState.dayPnl = byDay[today] || 0;
@@ -3055,6 +3059,8 @@ function saveData() {
       vix: appState.vix,
       vixLevel: appState.vixLevel || 'v2',
       currentVix: appState.currentVix,
+      mcRangeInputTs: appState.mcRangeInputTs,
+      mcVixInputTs: appState.mcVixInputTs,
       dayType: appState.dayType || '',
       tradeCount: appState.tradeCount,
       dayPnl: appState.dayPnl,
@@ -5277,6 +5283,10 @@ function updateLiveRange() {
   const box = document.getElementById('liveRangeBox');
   if (isNaN(high) || isNaN(low) || high <= low) { box.style.display = 'none'; return; }
 
+  appState.mcRangeInputTs = Date.now();
+  const tsLabel = document.getElementById('mcRangeTsLabel');
+  if (tsLabel) tsLabel.textContent = 'as of ' + new Date(appState.mcRangeInputTs).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
   const range = high - low;
   const adrInfo = computeADR();
   box.style.display = 'block';
@@ -5304,6 +5314,22 @@ function updateLiveRange() {
   } else {
     flagEl.textContent = '';
   }
+}
+
+function markMcVixInput() {
+  appState.mcVixInputTs = Date.now();
+  const tsLabel = document.getElementById('mcVixTsLabel');
+  if (tsLabel) tsLabel.textContent = 'as of ' + new Date(appState.mcVixInputTs).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+// Nifty cash session: 9:15 AM to 3:30 PM = 375 minutes. Used to figure out
+// how much of the trading day has elapsed at the moment a High/Low reading
+// was actually entered, so "0.75x ADR" can be read in context — early vs late.
+function sessionElapsedFraction(ts) {
+  const d = new Date(ts);
+  const mins = d.getHours() * 60 + d.getMinutes();
+  const frac = (mins - 555) / 375;
+  return Math.min(1, Math.max(0.03, frac));
 }
 
 let lastSuggestedType = null;
@@ -5348,24 +5374,37 @@ function suggestDayType() {
   const insideVA = (!isNaN(pdVah) && !isNaN(pdVal)) ? (high <= pdVah && low >= pdVal) : null;
   const pocMoved = (!isNaN(poc) && !isNaN(pdPoc)) ? Math.abs(poc - pdPoc) > (0.0015 * poc) : null;
 
+  const rangeTs = appState.mcRangeInputTs || Date.now();
+  const elapsedFrac = sessionElapsedFraction(rangeTs);
+  const timeLabel = new Date(rangeTs).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
   const reasons = [];
   let suggestion = 'moderate';
 
   if (adrInfo && adrInfo.n >= 5) {
     const ratio = range / adrInfo.avg;
+    const paceRatio = ratio / elapsedFrac;
     reasons.push(`Range so far is ${ratio.toFixed(2)}x your ${adrInfo.n}-day ADR (${Math.round(adrInfo.avg)} pts)`);
+    reasons.push(`as of ${timeLabel} — ${Math.round(elapsedFrac*100)}% of the session gone, pace-adjusted ${paceRatio.toFixed(2)}x`);
     if (ratio >= 1.15 && brokePdhPdl && insideVA === false) {
       suggestion = 'trend';
       reasons.push('broke and held beyond yesterday\'s PDH/PDL', 'price is outside yesterday\'s value area');
     } else if (ratio <= 0.7 && insideVA !== false && pocMoved !== true) {
       suggestion = 'consolidation';
       reasons.push('still inside yesterday\'s value area', 'POC has not moved meaningfully');
+    } else if (paceRatio >= 1.8 && brokePdhPdl && insideVA !== true) {
+      suggestion = 'trend';
+      reasons.push('pace-adjusted ratio flags unusually fast range expansion for this point in the session');
+    } else if (paceRatio <= 0.5 && insideVA !== false) {
+      suggestion = 'consolidation';
+      reasons.push('pace-adjusted ratio flags unusually slow range expansion for this point in the session — normal pace would be further along by now');
     } else {
       suggestion = 'moderate';
       reasons.push('mixed signals — some movement, but not clean enough for Trend or Consolidation');
     }
   } else {
     reasons.push(adrInfo ? `Only ${adrInfo.n} days of range history — using structure only, not range comparison yet` : 'No range history yet — using structure only');
+    reasons.push(`reading as of ${timeLabel} — ${Math.round(elapsedFrac*100)}% of session gone`);
     if (brokePdhPdl && insideVA === false) {
       suggestion = 'trend';
       reasons.push('broke and held beyond yesterday\'s PDH/PDL');
