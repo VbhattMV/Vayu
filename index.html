@@ -681,6 +681,7 @@
     <div id="adrStatus" style="font-size:10px;color:var(--text-muted);margin-top:8px;"></div>
 
     <div id="pcr-widget" style="margin-top:12px;padding:10px 12px;background:var(--surface2);border-radius:10px;font-size:11px;color:var(--text-dim);line-height:1.6;">Waiting for PCR data…</div>
+    <button class="btn btn-outline mt8" style="font-size:12px;padding:8px;" onclick="openOIAnalysis()">📊 OI Analysis</button>
     <div id="fyers-login-widget" style="margin-top:8px;"></div>
   </div>
 
@@ -1783,6 +1784,15 @@
     </div>
 
     <div class="field">
+      <label>OI Trend Aligned with Trade Direction? <span style="color:var(--text-muted);font-weight:400;">— logged context, same tier as PCR-at-entry</span></label>
+      <div class="pill-row" id="te-oi-aligned">
+        <div class="pill" onclick="togglePill(this,'te-oi-aligned')">Yes</div>
+        <div class="pill" onclick="togglePill(this,'te-oi-aligned')">No</div>
+        <div class="pill" onclick="togglePill(this,'te-oi-aligned')">Neutral</div>
+      </div>
+    </div>
+
+    <div class="field">
       <label>Direction</label>
       <div class="pill-row" id="te-dir">
         <div class="pill" onclick="togglePill(this,'te-dir');updateTeAdrHint()">Long (CE Buy)</div>
@@ -2006,6 +2016,18 @@
   </div>
 </div>
 
+<!-- OI ANALYSIS MODAL -->
+<div class="modal-overlay" id="modal-oi-analysis">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h3>OI Analysis</h3>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:14px;line-height:1.5;">Rule-based read of call/put wall positioning and PCR trend — not a live AI read, just structured options logic against the current chain. Use it as one input, not a signal on its own.</div>
+    <div id="oiAnalysisContent"><div style="color:var(--text-muted);font-size:13px;">Loading…</div></div>
+    <button class="btn btn-gold mt12" style="font-size:12px;padding:8px;" onclick="openOIAnalysis()">↻ Refresh</button>
+    <button class="btn btn-outline mt8" onclick="closeModal('modal-oi-analysis')">Close</button>
+  </div>
+</div>
+
 <!-- DAY TYPE GUIDE MODAL -->
 <div class="modal-overlay" id="modal-daytype-guide">
   <div class="modal">
@@ -2122,7 +2144,7 @@ const VIXHIST_HEADERS = ['Date','High','Low'];
 const SHEET_REJECTED = 'RejectedTrades';
 const REJECTED_HEADERS = ['Date','Time','Direction'];
 
-const TRADE_HEADERS = ['ID','Date','Time','Direction','Grade','Setup','Outcome','EntryPremium','ExitPremium','SLPremium','Target1Premium','Target2Premium','Lots','PnL','RValue','VIX','SessionState','RedViolation','ReentryAllowed','Reentry_Entry','Reentry_Exit','Reentry_Lots','Reentry_Outcome','Reentry_PnL','Notes','VixAtEntry','RangeRatioAtEntry','Historical','VixNumericAtEntry'];
+const TRADE_HEADERS = ['ID','Date','Time','Direction','Grade','Setup','Outcome','EntryPremium','ExitPremium','SLPremium','Target1Premium','Target2Premium','Lots','PnL','RValue','VIX','SessionState','RedViolation','ReentryAllowed','Reentry_Entry','Reentry_Exit','Reentry_Lots','Reentry_Outcome','Reentry_PnL','Notes','VixAtEntry','RangeRatioAtEntry','Historical','VixNumericAtEntry','PcrAtEntry','OiTrendAtEntry','OiBiasAtEntry','OiBiasScoreAtEntry','OiTrendAligned'];
 const SESSION_HEADERS = ['Date','State','VIX','TradeCount','DayPnL','ConsecutiveLosses','PostMarket_Integration','PostMarket_Missed','PostMarket_Tomorrow'];
 const SETTINGS_HEADERS = ['Key','Value'];
 const PREMARKET_HEADERS = ['Date','BodyState','EmotionalWeather','ReadinessScore','PsychicHygiene_EnergyCleared','PsychicHygiene_WitnessAnchor','PsychicHygiene_RecognitionHunger','PsychicHygiene_Self2Accessible','PsychicHygiene_NoStressBleed','PDClose_Context','HTFBias','KeyLevels','Scenarios','Sankalpa','PDH','PDL','PrevDayClose','PreOpen','Gap','GapType','OpeningBias','BiasReason','PD_VAH','PD_VAL','PD_POC','EPD_VAH','EPD_VAL','EPD_POC','PW_VAH','PW_VAL','PW_POC','CW_VAH','CW_VAL','CW_POC','EPW_VAH','EPW_VAL','EPW_POC','YdayMarketReview'];
@@ -2362,7 +2384,7 @@ async function syncAllTradesToSheets() {
 
   const rows = missing.reverse().map(trade => tradeToRow(trade));
 
-  await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:AC:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+  await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:AH:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
     values: rows
   });
 
@@ -2372,7 +2394,7 @@ async function loadFromSheets() {
   updateSyncUI('pending', 'Loading…');
 
   const ranges = [
-    `${SHEET_TRADES}!A2:AC`,
+    `${SHEET_TRADES}!A2:AH`,
     `${SHEET_SESSIONS}!A2:I`,
     `${SHEET_SETTINGS}!A2:B`,
     `${SHEET_PREMARKET}!A2:AL`,
@@ -2451,7 +2473,12 @@ async function loadFromSheets() {
       vixAtEntryLabel: r[25] || '',
       rangeRatioAtEntry: r[26] ? parseInt(r[26]) : null,
       historical: r[27] === 'YES',
-      vixNumericAtEntry: r[28] ? parseFloat(r[28]) : null
+      vixNumericAtEntry: r[28] ? parseFloat(r[28]) : null,
+      pcrAtEntry: r[29] ? parseFloat(r[29]) : null,
+      oiTrendAtEntry: r[30] || '',
+      oiBiasAtEntry: r[31] || '',
+      oiBiasScoreAtEntry: r[32] ? parseFloat(r[32]) : null,
+      oiTrendAligned: r[33] || ''
     }));
 
     // MERGE, don't overwrite: any local trade whose ID isn't in the Sheet
@@ -2620,7 +2647,12 @@ function tradeToRow(trade) {
     trade.vixAtEntryLabel || trade.vixAtEntry || '',
     (trade.rangeRatioAtEntry != null) ? trade.rangeRatioAtEntry + '%' : '',
     trade.historical ? 'YES' : 'NO',
-    trade.vixNumericAtEntry != null ? trade.vixNumericAtEntry : ''
+    trade.vixNumericAtEntry != null ? trade.vixNumericAtEntry : '',
+    trade.pcrAtEntry != null ? trade.pcrAtEntry : '',
+    trade.oiTrendAtEntry || '',
+    trade.oiBiasAtEntry || '',
+    trade.oiBiasScoreAtEntry != null ? trade.oiBiasScoreAtEntry : '',
+    trade.oiTrendAligned || ''
   ];
 }
 
@@ -2628,8 +2660,8 @@ async function syncTradeToSheets(trade) {
   if (!syncEnabled) return;
   const row = tradeToRow(trade);
 
-  // 29 columns: A through AC
-  const colRange = 'AC';
+  // 34 columns: A through AH
+  const colRange = 'AH';
 
   // Check if this trade ID already exists — compare as string since Sheets returns strings
   const existing = await sheetsRequest('GET', `/values/${SHEET_TRADES}!A:A`);
@@ -2667,7 +2699,7 @@ async function syncBulkTradesToSheets(trades, onProgress) {
   const CHUNK = 200;
   for (let i = 0; i < newRows.length; i += CHUNK) {
     const chunk = newRows.slice(i, i + CHUNK);
-    await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:AC:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
+    await sheetsRequest('POST', `/values/${SHEET_TRADES}!A:AH:append?valueInputOption=RAW&insertDataOption=INSERT_ROWS`, {
       values: chunk
     });
     if (onProgress) onProgress(Math.min(i + CHUNK, newRows.length), newRows.length);
@@ -3127,6 +3159,7 @@ function fireGuardrailAlert(reason) {
 }
 
 let latestPCRData = null;
+let latestOIBias = null;
 let lastPCRSuccessTs = null;
 let pcrErrorCount = 0;
 async function pollPCR() {
@@ -3137,6 +3170,7 @@ async function pollPCR() {
     const data = await resp.json();
     if (!data.error) {
       latestPCRData = data;
+      latestOIBias = data.oiBias || null;
       lastPCRSuccessTs = Date.now();
       pcrErrorCount = 0;
       renderPCRWidget(data, null);
@@ -3177,6 +3211,113 @@ async function pollVix() {
   }
 }
 
+function pcrTrendDirection(history) {
+  if (!history || history.length < 2) return 'flat';
+  const first = history[0].pcr;
+  const last = history[history.length - 1].pcr;
+  if (first == null || last == null) return 'flat';
+  const diff = last - first;
+  if (diff > 0.03) return 'rising';
+  if (diff < -0.03) return 'falling';
+  return 'flat';
+}
+
+function synthesizeOIRead(latest, pcrDir) {
+  const { pcr, callWall, putWall, spot } = latest;
+  const lines = [];
+
+  if (pcr == null) {
+    lines.push('PCR unavailable right now — chain data may be thin or markets closed.');
+  } else if (pcr < 0.7) {
+    lines.push(`PCR at ${pcr} — call-heavy positioning. Crowd leans bullish; classic contrarian read is caution on chasing further upside.`);
+  } else if (pcr > 1.3) {
+    lines.push(`PCR at ${pcr} — put-heavy positioning. Crowd leans bearish; classic contrarian read is caution on chasing further downside.`);
+  } else {
+    lines.push(`PCR at ${pcr} — neutral/balanced zone, no strong crowd skew either way right now.`);
+  }
+
+  if (pcrDir === 'rising') {
+    lines.push('PCR has been rising over the last few reads — put writing building relative to calls, typically a supportive undertone forming.');
+  } else if (pcrDir === 'falling') {
+    lines.push('PCR has been falling over the last few reads — call writing building relative to puts, typically a capping undertone forming.');
+  } else {
+    lines.push('PCR has been roughly flat over the last few reads — no fresh directional lean from OI shift yet.');
+  }
+
+  if (callWall && callWall.strike) {
+    const dist = (spot != null) ? ` (${Math.round(callWall.strike - spot)} pts above spot)` : '';
+    lines.push(`Call wall at ${callWall.strike}${dist} — heaviest call OI, nearest resistance where writers expect price to be capped.`);
+  }
+  if (putWall && putWall.strike) {
+    const dist = (spot != null) ? ` (${Math.round(spot - putWall.strike)} pts below spot)` : '';
+    lines.push(`Put wall at ${putWall.strike}${dist} — heaviest put OI, nearest support where writers expect price to hold.`);
+  }
+  if (callWall && putWall && callWall.strike && putWall.strike) {
+    const width = callWall.strike - putWall.strike;
+    lines.push(`Writers are currently boxing price between ${putWall.strike} and ${callWall.strike} (~${width} pt band). A break that holds beyond either wall — not just a touch — is the stronger tell, not the touch itself.`);
+  }
+
+  return lines;
+}
+
+function renderOIBiasDetail(bias) {
+  if (!bias) return `<div style="font-size:13px;color:var(--text-dim);line-height:1.6;">Not enough rolling history yet for a bias score — needs ~15 min of readings since app load or market open.</div>`;
+
+  const labelMap = { bearish: 'Bearish lean (Call-side buildup dominant)', bullish: 'Bullish lean (Put-side buildup dominant)', neutral: 'Neutral — no conviction, don\'t use as confluence' };
+  const colorMap = { bearish: 'var(--red)', bullish: 'var(--green)', neutral: 'var(--text-muted)' };
+
+  if (bias.stale) {
+    return `<div style="font-size:13px;color:var(--text-muted);line-height:1.6;">⚠ OI Bias reading is ${bias.lagSec}s old — too stale to trust, grayed out until the next successful poll.</div>`;
+  }
+
+  const expiryNote = bias.isExpiryDay ? `<div style="font-size:12px;color:var(--yellow);margin-bottom:8px;">⚠ Today is Nifty's weekly expiry (Tuesday) — OI swings get noisy from unwinding, treat this with lower reliability.</div>` : '';
+  const legRows = (bias.legs || []).map(l => {
+    const isAtm = l.strike === bias.atm;
+    return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:11px;">
+      <div style="color:${isAtm ? 'var(--gold)' : 'var(--text-dim)'};">${l.strike}${isAtm ? ' (ATM)' : ''}</div>
+      <div style="color:var(--text-dim);text-align:right;">CE ${l.ceDeltaPct != null ? l.ceDeltaPct + '%' : '—'} · ${l.ceLabel || '—'}</div>
+      <div style="color:var(--text-dim);text-align:right;">PE ${l.peDeltaPct != null ? l.peDeltaPct + '%' : '—'} · ${l.peLabel || '—'}</div>
+    </div>`;
+  }).join('');
+
+  return `
+    ${expiryNote}
+    <div style="font-size:14px;font-weight:600;color:${colorMap[bias.bias]};margin-bottom:4px;">${labelMap[bias.bias]}</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">Score ${bias.score} · spot moved ${bias.priceDir} over the last ~15 min · ATM ${bias.atm}</div>
+    ${legRows}
+    <div style="font-size:10px;color:var(--text-muted);margin-top:8px;">Informational only — never a standalone trigger. Your FRVP/ORB indicator confirmation stays the actual entry trigger.</div>
+  `;
+}
+
+async function openOIAnalysis() {
+  openModal('modal-oi-analysis');
+  const el = document.getElementById('oiAnalysisContent');
+  el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;">Fetching live chain…</div>';
+
+  try {
+    const resp = await fetch(`${VAYU_WORKER_URL}/pcr`, {
+      headers: { 'X-Vayu-Key': VAYU_SHARED_KEY }
+    });
+    const data = await resp.json();
+    if (data.error) {
+      el.innerHTML = `<div style="color:var(--red);font-size:13px;">Couldn't fetch chain data: ${data.error}</div>`;
+      return;
+    }
+    const pcrDir = pcrTrendDirection(data.history);
+    const lines = synthesizeOIRead(data.latest, pcrDir);
+    const ts = new Date(data.latest.ts).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+    el.innerHTML = `
+      <div style="font-size:10px;color:var(--text-muted);margin-bottom:10px;">as of ${ts}</div>
+      ${lines.map(l => `<div style="font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border);">${l}</div>`).join('')}
+      <div style="font-size:10px;letter-spacing:1px;color:var(--text-muted);text-transform:uppercase;margin:14px 0 8px;">Near-Strike OI Bias (ATM ± 2)</div>
+      ${renderOIBiasDetail(data.oiBias)}
+    `;
+  } catch (e) {
+    el.innerHTML = `<div style="color:var(--red);font-size:13px;">Fetch failed: ${e.message}</div>`;
+  }
+}
+
 function renderPCRWidget(data, errorMsg) {
   const ts = lastPCRSuccessTs ? new Date(lastPCRSuccessTs).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }) : null;
 
@@ -3194,6 +3335,7 @@ function renderPCRWidget(data, errorMsg) {
       <div><strong>PCR:</strong> ${data.latest.pcr ?? '-'}</div>
       <div><strong>OI Trend:</strong> ${data.trend}</div>
       <div style="font-size:0.8em;opacity:0.7;">Last ${data.history.length}: ${readings}</div>
+      ${renderOIBiasLine(data.oiBias)}
       ${staleLine}
     `;
   }
@@ -3201,6 +3343,22 @@ function renderPCRWidget(data, errorMsg) {
   if (el) el.innerHTML = html;
   const el2 = document.getElementById('pcr-widget-trade');
   if (el2) el2.innerHTML = html;
+}
+
+// OI Bias line — informational confluence only, never a standalone trigger.
+// Grayed out if stale (>90s since the reading) or on Nifty's weekly expiry
+// day (Tuesday, since 1 Sep 2025), where OI swings get noisy from unwinding.
+function renderOIBiasLine(bias) {
+  if (!bias) return `<div style="font-size:0.75em;color:var(--text-muted);margin-top:4px;">OI Bias: not enough history yet (needs ~15 min of readings)</div>`;
+
+  const labelMap = { bearish: 'Bearish lean (Call buildup dominant)', bullish: 'Bullish lean (Put buildup dominant)', neutral: 'Neutral — no conviction, don\'t use as confluence' };
+  const colorMap = { bearish: 'var(--red)', bullish: 'var(--green)', neutral: 'var(--text-muted)' };
+
+  if (bias.stale) {
+    return `<div style="font-size:0.75em;color:var(--text-muted);margin-top:4px;">⚠ OI Bias grayed out — reading is ${bias.lagSec}s old, too stale to trust</div>`;
+  }
+  const expiryNote = bias.isExpiryDay ? ' <span style="color:var(--yellow);">· low reliability, expiry day</span>' : '';
+  return `<div style="font-size:0.75em;margin-top:4px;"><strong>OI Bias:</strong> <span style="color:${colorMap[bias.bias]};">${labelMap[bias.bias]}</span> (score ${bias.score})${expiryNote}</div>`;
 }
 
 async function pushTradeIdsToGuardrail() {
@@ -3747,6 +3905,9 @@ function saveTrade() {
     vixNumericAtEntry: appState.currentVix != null ? appState.currentVix : null,
     pcrAtEntry: (latestPCRData && latestPCRData.latest) ? latestPCRData.latest.pcr : null,
     oiTrendAtEntry: latestPCRData ? latestPCRData.trend : null,
+    oiBiasAtEntry: latestOIBias ? latestOIBias.bias : null,
+    oiBiasScoreAtEntry: latestOIBias ? latestOIBias.score : null,
+    oiTrendAligned: (document.querySelector('#te-oi-aligned .pill.sel') || {}).textContent || '',
     rangeRatioAtEntry: (() => {
       const h = parseFloat(document.getElementById('mc-high')?.value);
       const l = parseFloat(document.getElementById('mc-low')?.value);
@@ -4188,6 +4349,8 @@ function openTradeDetail(id) {
       <div class="risk-item"><div class="rlabel">Lots</div><div class="rval">${t.lots}</div></div>
       <div class="risk-item"><div class="rlabel">VIX @ Entry</div><div class="rval">${t.vixAtEntryLabel || t.vixAtEntry || '—'}${t.vixNumericAtEntry != null ? ' ('+t.vixNumericAtEntry+')' : ''}</div></div>
       <div class="risk-item"><div class="rlabel">PCR @ Entry</div><div class="rval">${t.pcrAtEntry ?? '—'}</div></div>
+      <div class="risk-item"><div class="rlabel">OI Bias @ Entry</div><div class="rval">${t.oiBiasAtEntry ? t.oiBiasAtEntry + (t.oiBiasScoreAtEntry != null ? ' (' + t.oiBiasScoreAtEntry + ')' : '') : '—'}</div></div>
+      <div class="risk-item"><div class="rlabel">OI Trend Aligned</div><div class="rval">${t.oiTrendAligned || '—'}</div></div>
     </div>
     ${reentryHTML}
     ${t.notes ? `<div class="card" style="margin-top:12px;"><div class="card-title">Notes</div><div style="font-size:13px;line-height:1.6;">${t.notes}</div></div>` : ''}
@@ -4983,7 +5146,7 @@ async function repairHistoricalTrades() {
     showToast('Clearing old entries from Sheets…');
     // Full rewrite of the Trades sheet with only what remains (your live
     // trades) — clears out every stale historical row in one pass.
-    await sheetsRequest('POST', `/values/${SHEET_TRADES}!A2:AC5000:clear`, {});
+    await sheetsRequest('POST', `/values/${SHEET_TRADES}!A2:AH5000:clear`, {});
     if (appState.trades.length) {
       await syncBulkTradesToSheets(appState.trades, (done, total) => {
         showToast(`Re-syncing live trades… ${done}/${total}`);
