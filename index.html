@@ -3253,8 +3253,12 @@ function synthesizeOIRead(latest, pcrDir) {
     lines.push(`Put wall at ${putWall.strike}${dist} — heaviest put OI, nearest support where writers expect price to hold.`);
   }
   if (callWall && putWall && callWall.strike && putWall.strike) {
-    const width = callWall.strike - putWall.strike;
-    lines.push(`Writers are currently boxing price between ${putWall.strike} and ${callWall.strike} (~${width} pt band). A break that holds beyond either wall — not just a touch — is the stronger tell, not the touch itself.`);
+    if (callWall.strike === putWall.strike) {
+      lines.push(`Call and Put OI are both heaviest at the same strike — ${callWall.strike}. That's often called the "max pain" strike, where writers on both sides have the most to defend. Price tends to gravitate toward it, especially as the session wears on — worth watching whether it holds as a magnet or gets broken cleanly.`);
+    } else {
+      const width = callWall.strike - putWall.strike;
+      lines.push(`Writers are currently boxing price between ${putWall.strike} and ${callWall.strike} (~${width} pt band). A break that holds beyond either wall — not just a touch — is the stronger tell, not the touch itself.`);
+    }
   }
 
   return lines;
@@ -3358,6 +3362,14 @@ function renderOIBiasLine(bias) {
     return `<div style="font-size:0.75em;color:var(--text-muted);margin-top:4px;">⚠ OI Bias grayed out — reading is ${bias.lagSec}s old, too stale to trust</div>`;
   }
   const expiryNote = bias.isExpiryDay ? ' <span style="color:var(--yellow);">· low reliability, expiry day</span>' : '';
+
+  // score can be beyond the ±5 threshold while bias still reads 'neutral'
+  // if spot hasn't moved — that's OI building without price confirming it
+  // yet, worth surfacing rather than looking identical to a flat score.
+  if (bias.bias === 'neutral' && !bias.priceConfirmed && Math.abs(bias.score) > 5) {
+    const sideLabel = bias.score > 0 ? 'call-side' : 'put-side';
+    return `<div style="font-size:0.75em;margin-top:4px;"><strong>OI Bias:</strong> <span style="color:var(--text-muted);">OI building ${sideLabel} (score ${bias.score}) but spot hasn't moved — unconfirmed, don't use yet</span>${expiryNote}</div>`;
+  }
   return `<div style="font-size:0.75em;margin-top:4px;"><strong>OI Bias:</strong> <span style="color:${colorMap[bias.bias]};">${labelMap[bias.bias]}</span> (score ${bias.score})${expiryNote}</div>`;
 }
 
